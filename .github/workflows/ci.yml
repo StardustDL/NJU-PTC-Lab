@@ -1,0 +1,18 @@
+name: CI
+
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -yq bison flex
+      - name: Checkout Tests
+        uses: actions/checkout@v2
+      - name: Build
+        run: |
+          cd Code
+          make
