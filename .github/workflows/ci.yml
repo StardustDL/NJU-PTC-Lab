@@ -6,13 +6,18 @@ jobs:
   test:
     runs-on: ubuntu-18.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Install toolchain
         run: |
           sudo apt-get update
           sudo apt-get install -yq bison flex
-      - name: Checkout Tests
-        uses: actions/checkout@v2
       - name: Build
         run: |
           cd Code
           make
+      - name: Test
+        run: |
+          cd Test
+          chmod +x check.sh
+          ./check.sh

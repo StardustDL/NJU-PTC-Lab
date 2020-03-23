@@ -7,25 +7,14 @@
 #include <math.h>
 #include <stdarg.h>
 
+#include "ast.h"
 #include "lexical.h"
 #include "syntax.tab.h"
 
-enum RELOP_type
-{
-    RELOP_L, RELOP_S, RELOP_LE, RELOP_SE, RELOP_E, RELOP_NE
-};
-enum TYPE_type
-{
-    TYPE_INT, TYPE_FLOAT
-};
-static int enable_lexical_log = 0;
-static int enable_lexical_error = 1;
-static int lexical_is_passed = 1;
-static char lexical_buffer[1024];
-static void lexical_error(char *format, ...);
-static void lexical_log(char *format, ...);
-
 int yycolumn = 1;
+
+extern void lexical_error(char *format, ...);
+extern void lexical_log(char *format, ...);
 
 #define YY_USER_ACTION \
     yylloc.first_line = yylloc.last_line = yylineno; \
@@ -410,67 +399,3 @@ letter [a-zA-Z]
     lexical_error("Mysterious characters '%s'", yytext);
 }
 %%
-static void lexical_error(char *format, ...)
-{
-    lexical_is_passed = 0;
-
-    if (!enable_lexical_error)
-        return;
-
-    fprintf(stderr, "Error type A at Line %d: ", yylineno);
-
-    va_list aptr;
-    int ret;
-
-    va_start(aptr, format);
-    vsprintf(lexical_buffer, format, aptr);
-    va_end(aptr);
-
-    fprintf(stderr, "%s.\n", lexical_buffer);
-}
-static void lexical_log(char *format, ...)
-{
-    if (!enable_lexical_log)
-        return;
-
-    fprintf(stdout, "Lexical log at Line %d: ", yylineno);
-
-    va_list aptr;
-    int ret;
-
-    va_start(aptr, format);
-    vsprintf(lexical_buffer, format, aptr);
-    va_end(aptr);
-
-    fprintf(stdout, "%s\n", lexical_buffer);
-}
-
-void lexical_set_log(int enable)
-{
-    enable_lexical_log = enable;
-}
-
-void lexical_set_error(int enable)
-{
-    enable_lexical_error = enable;
-}
-
-void lexical_prepare(FILE* input)
-{
-    yyrestart(input);
-    yylineno = 1;
-    yycolumn = 1;
-    lexical_is_passed = 1;
-}
-
-int lexical_test()
-{
-    while (yylex() != 0)
-        ;
-    return lexical_has_passed();
-}
-
-int lexical_has_passed()
-{
-    return lexical_is_passed;
-}

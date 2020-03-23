@@ -2,15 +2,16 @@
 #define __LEXICAL_H__
 
 #include <stdio.h>
+#include "common.h"
 
-void lexical_set_log(int enable);
+void lexical_set_log(bool enable);
 
-void lexical_set_error(int enable);
+void lexical_set_error(bool enable);
 
 void lexical_prepare(FILE* input);
 
-int lexical_has_passed();
+bool lexical_has_passed();
 
-int lexical_test();
+bool lexical_test();
 
 #endif
