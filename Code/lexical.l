@@ -1,12 +1,8 @@
 %option yylineno
 %{
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
+#include <string.h>
 #include <limits.h>
-#include <math.h>
-#include <stdarg.h>
-
 #include "ast.h"
 #include "lexical.h"
 #include "syntax.tab.h"
@@ -20,20 +16,19 @@ extern void lexical_log(char *format, ...);
     yylloc.first_line = yylloc.last_line = yylineno; \
     yylloc.first_column = yycolumn; yylloc.last_column = yycolumn+yyleng-1; \
     yycolumn += yyleng; yylval = new_ast(ST_EMPTY); yylval->first_line = yylloc.first_line; yylval->is_token = 1;
+#define SIMPLE_OP(lex_type) \
+    lexical_log(#lex_type " %s", yytext); \
+    yylval->type = ST_##lex_type; \
+    return lex_type
+
 %}
 digit [0-9]
 letter [a-zA-Z]
 %%
 "//" {
     int c;
-    do
-    {
-        c = input();
-    } while (c != '\n' && c != 0);
-    if (c == '\n')
-    {
-        unput(c);
-    }
+    do { c = input(); } while (c != '\n' && c != 0);
+    if (c == '\n') unput(c);
     lexical_log("Line comment");
 }
 "/*" {
@@ -41,8 +36,7 @@ letter [a-zA-Z]
     do
     {
         c = input();
-        if (c == '\n')
-            yycolumn = 1;
+        if (c == '\n') yycolumn = 1;
         if (c == '*')
         {
             c2 = input();
@@ -51,19 +45,15 @@ letter [a-zA-Z]
                 flag = 1;
                 break;
             }
-            else
-                unput(c2);
+            else unput(c2);
         }
     } while (c != 0);
     if (!flag)
-    {
         lexical_error("Missing '*/' for block comments", yylineno);
-    }
     lexical_log("Block comment");
 }
 "*/" {
-    lexical_error("Missing '/*' for block comments", yylineno); 
-    // */
+    lexical_error("Missing '/*' for block comments", yylineno);  // */
 }
 (0|[1-9][0-9]*) {
     // decimal integer
@@ -231,74 +221,20 @@ letter [a-zA-Z]
     yylval->t_float = result;
     return FLOAT;
 }
-{digit}+\.|\.{digit}+ {
-    // illegal normal float
-    lexical_error("Illegal float number '%s'", yytext);
-}
-({digit}+\.{digit}*|\.{digit}+)[eE] {
-    // illegal scientific notation float
-    lexical_error("Illegal float number '%s'", yytext);
-}
-"." {
-    lexical_log("DOT %s", yytext);
-    yylval->type = ST_DOT;
-    return DOT;
-}
-"int"|"float" {
-    lexical_log("TYPE %s", yytext);
-    yylval->type = ST_TYPE;
-    yylval->t_type = yytext[0] == 'i' ? TYPE_INT : TYPE_FLOAT;
-    return TYPE;
-}
-"struct" {
-    lexical_log("STRUCT %s", yytext);
-    yylval->type = ST_STRUCT;
-    return STRUCT;
-}
-"return" {
-    lexical_log("RETURN %s", yytext);
-    yylval->type = ST_RETURN;
-    return RETURN;
-}
-"if" {
-    lexical_log("IF %s", yytext);
-    yylval->type = ST_IF;
-    return IF;
-}
-"else" {
-    lexical_log("ELSE %s", yytext);
-    yylval->type = ST_ELSE;
-    return ELSE;
-}
-"while" {
-    lexical_log("WHILE %s", yytext);
-    yylval->type = ST_WHILE;
-    return WHILE;
-}
-(_|{letter})(_|{letter}|{digit})* {
-    lexical_log("ID %s", yytext);
-    yylval->type = ST_ID;
-    strcpy(yylval->t_str, yytext);
-    return ID;
-}
-";" {
-    lexical_log("SEMI %s", yytext);
-    yylval->type = ST_SEMI;
-    return SEMI;
-}
-"," {
-    lexical_log("COMMA %s", yytext);
-    yylval->type = ST_COMMA;
-    return COMMA;
-}
-"=" {
-    lexical_log("ASSIGNOP %s", yytext);
-    yylval->type = ST_ASSIGNOP;
-    return ASSIGNOP;
-}
+{digit}+\.|\.{digit}+ { lexical_error("Illegal float number '%s'", yytext); /* illegal normal float */ }
+({digit}+\.{digit}*|\.{digit}+)[eE] { lexical_error("Illegal float number '%s'", yytext); /* illegal scientific notation float */ }
+"." { SIMPLE_OP(DOT); }
+"int"|"float" { yylval->t_type = yytext[0] == 'i' ? TYPE_INT : TYPE_FLOAT; SIMPLE_OP(TYPE); }
+"struct" { SIMPLE_OP(STRUCT); }
+"return" { SIMPLE_OP(RETURN); }
+"if" { SIMPLE_OP(IF); }
+"else" { SIMPLE_OP(ELSE); }
+"while" { SIMPLE_OP(WHILE); }
+(_|{letter})(_|{letter}|{digit})* { strcpy(yylval->t_str, yytext); SIMPLE_OP(ID); }
+";" { SIMPLE_OP(SEMI); }
+"," { SIMPLE_OP(COMMA); }
+"=" { SIMPLE_OP(ASSIGNOP); }
 ">"|"<"|">="|"<="|"=="|"!=" {
-    lexical_log("RELOP %s", yytext);
-    yylval->type = ST_RELOP;  
     if(yyleng == 1)
     {
         yylval->t_type = yytext[0] == '>' ? RELOP_L : RELOP_S;
@@ -321,81 +257,22 @@ letter [a-zA-Z]
                 break;
         }
     }
-    return RELOP;
+    SIMPLE_OP(RELOP);
 }
-"+" {
-    lexical_log("PLUS %s", yytext);
-    yylval->type = ST_PLUS;
-    return PLUS;
-}
-"-" {
-    lexical_log("MINUS %s", yytext);
-    yylval->type = ST_MINUS;
-    return MINUS;
-}
-"*" {
-    lexical_log("STAR %s", yytext);
-    yylval->type = ST_STAR;
-    return STAR;
-}
-"/" {
-    lexical_log("DIV %s", yytext);
-    yylval->type = ST_DIV;
-    return DIV;
-}
-"&&" {
-    lexical_log("AND %s", yytext);
-    yylval->type = ST_AND;
-    return AND;
-}
-"||" {
-    lexical_log("OR %s", yytext);
-    yylval->type = ST_OR;
-    return OR;
-}
-"!" {
-    lexical_log("NOT %s", yytext);
-    yylval->type = ST_NOT;
-    return NOT;
-}
-"(" {
-    lexical_log("LP %s", yytext);
-    yylval->type = ST_LP;
-    return LP;
-}
-")" {
-    lexical_log("RP %s", yytext);
-    yylval->type = ST_RP;
-    return RP;
-}
-"[" {
-    lexical_log("LB %s", yytext);
-    yylval->type = ST_LB;
-    return LB;
-}
-"]" {
-    lexical_log("RB %s", yytext);
-    yylval->type = ST_RB;
-    return RB;
-}
-"{" {
-    lexical_log("LC %s", yytext);
-    yylval->type = ST_LC;
-    return LC;
-}
-"}" {
-    lexical_log("RC %s", yytext);
-    yylval->type = ST_RC;
-    return RC;
-}
-[ \t\r]+ {
-    lexical_log("BLANK", yytext);
-}
-\n {
-    lexical_log("ENTER", yytext);
-    yycolumn = 1;
-}
-. {
-    lexical_error("Mysterious characters '%s'", yytext);
-}
+"+" { SIMPLE_OP(PLUS); }
+"-" { SIMPLE_OP(MINUS); }
+"*" { SIMPLE_OP(STAR); }
+"/" { SIMPLE_OP(DIV); }
+"&&" { SIMPLE_OP(AND); }
+"||" { SIMPLE_OP(OR); }
+"!" { SIMPLE_OP(NOT); }
+"(" { SIMPLE_OP(LP); }
+")" { SIMPLE_OP(RP); }
+"[" { SIMPLE_OP(LB); }
+"]" { SIMPLE_OP(RB); }
+"{" { SIMPLE_OP(LC); }
+"}" { SIMPLE_OP(RC); }
+[ \t\r]+ { lexical_log("BLANK", yytext); }
+\n { lexical_log("ENTER", yytext); yycolumn = 1; }
+. { lexical_error("Mysterious characters '%s'", yytext); }
 %%
