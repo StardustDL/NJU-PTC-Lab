@@ -15,7 +15,7 @@ extern void lexical_log(char *format, ...);
 #define YY_USER_ACTION \
     yylloc.first_line = yylloc.last_line = yylineno; \
     yylloc.first_column = yycolumn; yylloc.last_column = yycolumn+yyleng-1; \
-    yycolumn += yyleng; yylval = new_ast(ST_EMPTY); yylval->first_line = yylloc.first_line; yylval->is_token = 1;
+    yycolumn += yyleng; yylval = new_ast(ST_EMPTY, yylloc.first_line, 0); yylval->is_token = 1;
 #define SIMPLE_OP(lex_type) \
     lexical_log(#lex_type " %s", yytext); \
     yylval->type = ST_##lex_type; \

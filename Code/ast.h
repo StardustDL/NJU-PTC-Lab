@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-enum SYNTAX_TYPE
+typedef enum
 {
     ST_EMPTY,
     ST_INT,
@@ -54,23 +54,25 @@ enum SYNTAX_TYPE
     ST_Dec,
     ST_Exp,
     ST_Args
-};
+} SYNTAX_type;
 
-enum RELOP_type
+typedef enum
 {
     RELOP_L, RELOP_S, RELOP_LE, RELOP_SE, RELOP_E, RELOP_NE
-};
-enum TYPE_type
+} RELOP_type;
+
+typedef enum
 {
     TYPE_INT, TYPE_FLOAT
-};
+} TYPE_type;
 
-struct ast
+typedef struct __ast
 {
-    enum SYNTAX_TYPE type;
+    SYNTAX_type type;
     bool is_empty;
     bool is_token;
-    struct ast_list* children;
+    int count;
+    struct __ast** children;
     int first_line;
     union 
     {
@@ -79,22 +81,12 @@ struct ast
         int t_type;
         char t_str[64];
     };
-};
-struct ast_list {
-    struct ast* head;
-    struct ast_list* next;
-};
+} ast;
 
-struct ast* new_ast(int type);
+ast* new_ast(int type, int first_line, int count, ...);
 
-void free_ast(struct ast* ast);
+void free_ast(ast* ast);
 
-struct ast_list* new_ast_list(struct ast* ast);
-
-void free_ast_list(struct ast_list* ast_list);
-
-void pushfront_child(struct ast* parent, struct ast* child);
-
-void show_ast(struct ast* ast, int level);
+void show_ast(ast* ast, int level);
 
 #endif
