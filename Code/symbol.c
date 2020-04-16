@@ -4,10 +4,11 @@
 #include "symbol.h"
 #include "common.h"
 
-symbol *new_symbol(char *name, type *tp, SYMBOL_state state)
+symbol *new_symbol(char *name, int lineno, type *tp, SYMBOL_state state)
 {
     symbol *result = new (symbol);
     strcpy(result->name, name);
+    result->lineno = lineno;
     result->tp = tp;
     result->state = state;
     return result;
@@ -38,7 +39,7 @@ symbol *st_find(symbol_table *table, char *name)
     symbol_table *cur = table;
     while (cur != NULL)
     {
-        symbol *res = st_findonly(table, name);
+        symbol *res = st_findonly(cur, name);
         if (res != NULL)
             return res;
         cur = cur->parent;

@@ -5,7 +5,7 @@
 
 type *new_type(TYPE_CLASS cls)
 {
-    type *result = new(type);
+    type *result = new (type);
     result->cls = cls;
     return result;
 }
@@ -86,8 +86,7 @@ bool type_full_eq(type *a, type *b, bool strict_arr)
             return false;
         for (int i = 0; i < a->memc; i++)
         {
-            if (strcmp(a->mems[i]->name, b->mems[i]->name) != 0)
-                return false;
+            // if (strcmp(a->mems[i]->name, b->mems[i]->name) != 0) return false;
             if (!type_full_eq(a->mems[i]->tp, b->mems[i]->tp, true))
                 return false;
         }
@@ -99,8 +98,16 @@ bool type_full_eq(type *a, type *b, bool strict_arr)
 type *type_array_descending(type *t)
 {
     assert(t->cls == TC_ARRAY);
-    type *result = new_type(TC_ARRAY);
-    result->rank = t->rank - 1;
-    result->lens = t->lens + 1;
-    return result;
+    if (t->rank > 1)
+    {
+        type *result = new_type(TC_ARRAY);
+        result->rank = t->rank - 1;
+        result->lens = t->lens + 1;
+        return result;
+    }
+    else
+    {
+        assert(t->rank == 1);
+        return t->base;
+    }
 }

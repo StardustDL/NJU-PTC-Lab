@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include "semantics.h"
 #include "ast.h"
 #include "symbol.h"
@@ -139,6 +140,7 @@ typedef struct
 typedef struct __SES_Exp
 {
     type *tp;
+    int lineno;
     struct __SES_Exp *next;
 } SES_Exp;
 
@@ -156,12 +158,6 @@ typedef struct __SES_VarDec
     int_list *lens;
     struct __SES_VarDec *next;
 } SES_VarDec;
-
-typedef struct __SES_Args
-{
-    type *tp;
-    struct __SES_Args *next;
-} SES_Args;
 
 #pragma region
 static void analyse_EMPTY(ast *tree, env *ev);
@@ -384,6 +380,17 @@ static void analyse_Program(ast *tree, env *ev)
 
     assert(tree->type == ST_Program);
     analyse_ExtDefList(tree->children[0], ev);
+
+    symbol_item *cur = ev->syms->table;
+    while (cur != NULL)
+    {
+        symbol *sym = cur->sym;
+        if (sym->tp->cls == TC_FUNC && sym->state == SS_DEC)
+        {
+            error_func_decnodef(sym->lineno, sym->name);
+        }
+        cur = cur->next;
+    }
 }
 static void analyse_ExtDefList(ast *tree, env *ev)
 {
@@ -436,12 +443,12 @@ static void analyse_ExtDef(ast *tree, env *ev)
         }
         else if (specifier->tp == NULL) // struct dec
         {
-            symbol *sym = new_symbol(specifier->struct_name, new_type_struct(0, NULL), SS_DEC);
+            symbol *sym = new_symbol(specifier->struct_name, tree->first_line, new_type_struct(0, NULL), SS_DEC);
             st_pushfront(ev->syms, sym);
         }
         else
         {
-            symbol *sym = new_symbol(specifier->struct_name, specifier->tp, SS_DEF);
+            symbol *sym = new_symbol(specifier->struct_name, tree->first_line, specifier->tp, SS_DEF);
             st_pushfront(ev->syms, sym);
         }
     }
@@ -654,12 +661,13 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
         SES_VarDec *tag = new (SES_VarDec);
         if (invardec)
         {
-            tag->sym = new_symbol(id->name, NULL, SS_DEC);
+            tag->sym = new_symbol(id->name, tree->first_line, NULL, SS_DEC);
         }
         else
         {
-            tag->sym = new_symbol(id->name, ev->declare_type, SS_DEC);
+            tag->sym = new_symbol(id->name, tree->first_line, ev->declare_type, SS_DEC);
         }
+        tag->lineno = tree->first_line;
         tree->tag = tag;
         return tag;
     }
@@ -673,6 +681,7 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
         li->data = len->value;
         li->next = subvar->lens;
         subvar->lens = li;
+        subvar->lineno = tree->first_line;
         if (invardec)
         {
             tree->tag = subvar;
@@ -721,7 +730,7 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
 
     if (tree->count == 3)
     {
-        symbol *sym = new_symbol(id->name, new_type_func(0, NULL, ev->declare_type), SS_DEC);
+        symbol *sym = new_symbol(id->name, tree->first_line, new_type_func(0, NULL, ev->declare_type), SS_DEC);
         tag->sym = sym;
     }
     else
@@ -744,7 +753,7 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
             cur = cur->next;
         }
         type *ftp = new_type_func(len, args, ev->declare_type);
-        symbol *sym = new_symbol(id->name, ftp, SS_DEC);
+        symbol *sym = new_symbol(id->name, tree->first_line, ftp, SS_DEC);
         tag->sym = sym;
     }
     tree->tag = tag;
@@ -774,6 +783,19 @@ static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
     assert(tree->type == ST_ParamDec);
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
+    if (specifier->struct_name != NULL && specifier->tp == NULL) // struct dec
+    {
+        symbol *existsym = st_find(ev->syms, specifier->struct_name);
+        if (existsym == NULL || existsym->tp->cls != TC_STRUCT || existsym->state == SS_DEC)
+        {
+            error_struct_nodef(tree->first_line, specifier->struct_name);
+            specifier->tp = new_type_unit();
+        }
+        else
+        {
+            specifier->tp = existsym->tp;
+        }
+    }
     assert(ev->declare_type == NULL);
     ev->declare_type = specifier->tp;
 
@@ -803,7 +825,9 @@ static void analyse_CompSt(ast *tree, env *ev)
 
     symbol_table *cst = new_symbol_table(ev->syms);
     env *cenv = new (env);
+    cenv->ret_type = ev->ret_type;
     cenv->syms = cst;
+
     analyse_DefList(tree->children[1], cenv);
 
     analyse_StmtList(tree->children[2], cenv);
@@ -903,13 +927,13 @@ static void analyse_Def(ast *tree, env *ev)
         if (existsym == NULL || existsym->tp->cls != TC_STRUCT || existsym->state == SS_DEC)
         {
             error_struct_nodef(tree->first_line, specifier->struct_name);
+            specifier->tp = new_type_unit();
         }
         else
         {
             specifier->tp = existsym->tp;
         }
     }
-
     ev->declare_type = specifier->tp;
     SES_VarDec *decs = analyse_DecList(tree->children[1], ev);
     while (decs != NULL)
@@ -1004,6 +1028,287 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
     //     | FLOAT
     //     ;
     assert(tree->type == ST_Exp);
+
+    SES_Exp *tag = NULL;
+
+    if (tree->count == 1)
+    {
+        if (tree->children[0]->type == ST_INT) // INT
+        {
+            SES_INT *val = analyse_INT(tree->children[0], ev);
+            tag = new (SES_Exp);
+            tag->tp = val->tp;
+        }
+        else if (tree->children[0]->type == ST_FLOAT) // FLOAT
+        {
+            SES_FLOAT *val = analyse_FLOAT(tree->children[0], ev);
+            tag = new (SES_Exp);
+            tag->tp = val->tp;
+        }
+        else if (tree->children[0]->type == ST_ID) // ID
+        {
+            SES_ID *val = analyse_ID(tree->children[0], ev);
+            tag = new (SES_Exp);
+            if (val->sym == NULL)
+            {
+                error_var_nodef(tree->first_line, val->name);
+                tag->tp = new_type_unit();
+            }
+            else
+            {
+                tag->tp = val->sym->tp;
+            }
+        }
+    }
+    else if (tree->count == 2)
+    {
+        SES_Exp *exp = analyse_Exp(tree->children[1], ev);
+        if (tree->children[0]->type == ST_MINUS) // MINUS Exp
+        {
+            tag = new (SES_Exp);
+            if (exp->tp->cls != TC_META)
+            {
+                error_op_type(tree->children[1]->first_line);
+                tag->tp = new_type_meta(MT_FLOAT);
+            }
+            else
+            {
+                tag->tp = exp->tp;
+            }
+        }
+        else if (tree->children[0]->type == ST_NOT) // NOT Exp
+        {
+            tag = new (SES_Exp);
+            if (exp->tp->cls != TC_META || exp->tp->metatype != MT_INT)
+            {
+                error_op_type(tree->children[1]->first_line);
+                tag->tp = new_type_meta(MT_INT);
+            }
+            else
+            {
+                tag->tp = exp->tp;
+            }
+        }
+    }
+    else if (tree->count == 3)
+    {
+        if (tree->children[0]->type == ST_LP) // LP Exp RP
+        {
+            tag = new (SES_Exp);
+            SES_Exp *exp = analyse_Exp(tree->children[1], ev);
+            tag->tp = exp->tp;
+        }
+        else if (tree->children[0]->type == ST_ID) // ID LP RP
+        {
+            SES_ID *val = analyse_ID(tree->children[0], ev);
+            tag = new (SES_Exp);
+            if (val->sym == NULL)
+            {
+                error_func_nodef(tree->first_line, val->name);
+                tag->tp = new_type_unit();
+            }
+            else if (val->sym->tp->cls != TC_FUNC)
+            {
+                error_call(tree->first_line);
+                tag->tp = new_type_unit();
+            }
+            else if (val->sym->state != SS_DEF)
+            {
+                error_func_nodef(tree->first_line, val->name);
+                tag->tp = new_type_unit();
+            }
+            else if (val->sym->tp->argc != 0)
+            {
+                error_call_type(tree->first_line);
+                tag->tp = new_type_unit();
+            }
+            else
+            {
+                tag->tp = val->sym->tp->ret;
+            }
+        }
+        else if (tree->children[1]->type == ST_DOT) // Exp DOT ID
+        {
+            SES_Exp *exp = analyse_Exp(tree->children[0], ev);
+            SES_ID *id = analyse_ID(tree->children[2], ev);
+            tag = new (SES_Exp);
+            if (exp->tp->cls != TC_STRUCT)
+            {
+                error_member(tree->first_line);
+                tag->tp = new_type_unit();
+            }
+            else
+            {
+                symbol *member = NULL;
+                for (int i = 0; i < exp->tp->memc; i++)
+                {
+                    symbol *sym = exp->tp->mems[i];
+                    if (strcmp(sym->name, id->name) == 0)
+                    {
+                        member = sym;
+                        break;
+                    }
+                }
+                if (member == NULL)
+                {
+                    error_member_nodef(tree->children[2]->first_line, id->name);
+                    tag->tp = new_type_unit();
+                }
+                else
+                {
+                    tag->tp = member->tp;
+                }
+            }
+        }
+        else if (tree->children[1]->type == ST_AND || tree->children[1]->type == ST_OR) // Exp AND Exp, Exp OR Exp
+        {
+            tag = new (SES_Exp);
+            SES_Exp *exp1 = analyse_Exp(tree->children[0], ev);
+            SES_Exp *exp2 = analyse_Exp(tree->children[2], ev);
+            if (exp1->tp->cls != TC_META || exp1->tp->metatype != MT_INT)
+            {
+                error_op_type(tree->children[0]->first_line);
+                tag->tp = new_type_meta(MT_INT);
+            }
+            else if (exp2->tp->cls != TC_META || exp2->tp->metatype != MT_INT)
+            {
+                error_op_type(tree->children[0]->first_line);
+                tag->tp = new_type_meta(MT_INT);
+            }
+            else
+            {
+                tag->tp = exp1->tp;
+            }
+        }
+        else if (tree->children[1]->type == ST_ASSIGNOP)
+        {
+            tag = new (SES_Exp);
+            SES_Exp *exp1 = analyse_Exp(tree->children[0], ev);
+            SES_Exp *exp2 = analyse_Exp(tree->children[2], ev);
+
+            bool isrval = true;
+            if (tree->children[0]->count == 1 && tree->children[0]->children[0]->type == ST_ID)
+                isrval = false;
+            else if (tree->children[0]->count == 4 && tree->children[0]->children[1]->type == ST_LB)
+                isrval = false;
+            else if (tree->children[0]->count == 3 && tree->children[0]->children[1]->type == ST_DOT)
+                isrval = false;
+            if (isrval)
+            {
+                error_assign_rval(tree->first_line);
+                tag->tp = new_type_unit();
+            }
+            else if (!type_full_eq(exp1->tp, exp2->tp, false))
+            {
+                error_assign_type(tree->first_line);
+                tag->tp = new_type_unit();
+            }
+            else
+            {
+                tag->tp = exp1->tp;
+            }
+        }
+        else // PLUS, MINUS, ...
+        {
+            tag = new (SES_Exp);
+            SES_Exp *exp1 = analyse_Exp(tree->children[0], ev);
+            SES_Exp *exp2 = analyse_Exp(tree->children[2], ev);
+            if (exp1->tp->cls != TC_META)
+            {
+                error_op_type(tree->children[0]->first_line);
+                tag->tp = new_type_meta(MT_FLOAT);
+            }
+            else if (exp2->tp->cls != TC_META)
+            {
+                error_op_type(tree->children[2]->first_line);
+                tag->tp = new_type_meta(MT_FLOAT);
+            }
+            else if (exp1->tp->metatype != exp2->tp->metatype)
+            {
+                error_op_type(tree->children[2]->first_line);
+                tag->tp = new_type_meta(MT_FLOAT);
+            }
+            else
+            {
+                tag->tp = exp1->tp;
+            }
+        }
+    }
+    else if (tree->count == 4)
+    {
+        if (tree->children[0]->type == ST_ID) // ID LP Args RP
+        {
+            SES_ID *val = analyse_ID(tree->children[0], ev);
+            SES_Exp *args = analyse_Args(tree->children[2], ev);
+            tag = new (SES_Exp);
+            if (val->sym == NULL)
+            {
+                error_func_nodef(tree->first_line, val->name);
+                tag->tp = new_type_unit();
+            }
+            else if (val->sym->tp->cls != TC_FUNC)
+            {
+                error_call(tree->first_line);
+                tag->tp = new_type_unit();
+            }
+            else if (val->sym->state != SS_DEF)
+            {
+                error_func_nodef(tree->first_line, val->name);
+                tag->tp = new_type_unit();
+            }
+            else
+            {
+                int i = 0;
+                bool haspass = true;
+                while (args != NULL && i < val->sym->tp->argc)
+                {
+                    if (!type_full_eq(args->tp, val->sym->tp->args[i], false))
+                    {
+                        error_call_type(args->lineno);
+                        haspass = false;
+                    }
+                    args = args->next;
+                    i++;
+                }
+                if (args != NULL)
+                {
+                    error_call_type(tree->first_line);
+                    haspass = false;
+                }
+                if (!haspass)
+                {
+                    tag->tp = new_type_unit();
+                }
+                else
+                {
+                    tag->tp = val->sym->tp->ret;
+                }
+            }
+        }
+        else // Exp LB Exp RB
+        {
+            tag = new (SES_Exp);
+            SES_Exp *exp1 = analyse_Exp(tree->children[0], ev);
+            SES_Exp *exp2 = analyse_Exp(tree->children[2], ev);
+            if (exp2->tp->cls != TC_META || exp2->tp->metatype != MT_INT)
+            {
+                error_index_arg(tree->children[2]->first_line);
+                tag->tp = new_type_unit();
+            }
+            else if (exp1->tp->cls != TC_ARRAY)
+            {
+                error_index(tree->first_line);
+                tag->tp = new_type_unit();
+            }
+            else
+            {
+                tag->tp = type_array_descending(exp1->tp);
+            }
+        }
+    }
+    tag->lineno = tree->first_line;
+    tree->tag = tag;
+    return tag;
 }
 static SES_Exp *analyse_Args(ast *tree, env *ev)
 {

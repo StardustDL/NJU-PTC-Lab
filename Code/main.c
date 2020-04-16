@@ -62,9 +62,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    show_ast(tree, 0);
+    // show_ast(tree, 0);
 
-    semantics_set_log(true);
+    // semantics_set_log(true);
 
     if (!try_semantics(tree))
         return 1;

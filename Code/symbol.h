@@ -48,6 +48,7 @@ typedef enum
 typedef struct __symbol
 {
     char name[64];
+    int lineno;
     type *tp;
     SYMBOL_state state;
 } symbol;
@@ -80,7 +81,7 @@ type *type_array_descending(type *t);
 
 bool type_full_eq(type *a, type *b, bool strict_arr);
 
-symbol *new_symbol(char *name, type *tp, SYMBOL_state state);
+symbol *new_symbol(char *name, int lineno, type *tp, SYMBOL_state state);
 
 symbol_table *new_symbol_table(symbol_table *parent);
 
