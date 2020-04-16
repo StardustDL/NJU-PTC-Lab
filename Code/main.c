@@ -31,11 +31,11 @@ static int try_lexical(FILE *input)
     return result;
 }
 
-static struct ast *try_syntax(FILE *input)
+static ast *try_syntax(FILE *input)
 {
     lexical_prepare(input);
     syntax_prepare();
-    struct ast *result = syntax_work();
+    ast *result = syntax_work();
     fclose(input);
     return result;
 }
@@ -61,6 +61,8 @@ int main(int argc, char **argv)
     {
         return 1;
     }
+
+    // show_ast(tree, 0);
 
     if (!try_semantics(tree))
         return 1;

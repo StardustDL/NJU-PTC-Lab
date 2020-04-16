@@ -86,6 +86,7 @@ typedef struct __ast
         int t_type;
         char t_str[64];
     };
+    void* tag;
 } ast;
 
 ast *new_ast(int type, int first_line, int count, ...);

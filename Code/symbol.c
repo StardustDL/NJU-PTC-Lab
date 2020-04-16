@@ -2,11 +2,11 @@
 #include <string.h>
 #include <assert.h>
 #include "symbol.h"
+#include "common.h"
 
 symbol *new_symbol(char *name, type *tp, SYMBOL_state state)
 {
-    symbol *result = (symbol *)malloc(sizeof(symbol));
-    memset(result, 0, sizeof(symbol));
+    symbol *result = new(symbol);
     strcpy(result->name, name);
     result->tp = tp;
     result->state = state;
@@ -15,8 +15,7 @@ symbol *new_symbol(char *name, type *tp, SYMBOL_state state)
 
 symbol_table *new_symbol_table(symbol_table *parent)
 {
-    symbol_table *result = (symbol_table *)malloc(sizeof(symbol_table));
-    memset(result, 0, sizeof(symbol_table));
+    symbol_table *result = new(symbol_table);
     result->parent = parent;
     result->table = NULL;
     return result;
@@ -50,8 +49,7 @@ symbol *st_find(symbol_table *table, char *name)
 void st_pushfront(symbol_table *table, symbol *sym)
 {
     assert(st_findonly(table, sym->name) == NULL);
-    symbol_item *si = (symbol_item *)malloc(sizeof(symbol_item));
-    memset(si, 0, sizeof(symbol_item));
+    symbol_item *si = new(symbol_item);
     si->sym = sym;
     si->next = table->table;
     table->table = si;

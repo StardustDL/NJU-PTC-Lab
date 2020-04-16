@@ -5,8 +5,7 @@
 
 type *new_type(TYPE_CLASS cls)
 {
-    type *result = (type *)malloc(sizeof(type));
-    memset(result, 0, sizeof(type));
+    type *result = new(type);
     result->cls = cls;
     return result;
 }

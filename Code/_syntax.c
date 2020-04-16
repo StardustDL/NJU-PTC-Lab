@@ -14,7 +14,7 @@ static bool enable_syntax_log = false;
 static bool syntax_is_passed = false;
 static char syntax_buffer[1024];
 
-void syntax_set_result(struct ast *result)
+void syntax_set_result(ast *result)
 {
     syntax_result = result;
 }

@@ -8,16 +8,16 @@
 ast *new_ast(int type, int first_line, int count, ...)
 {
     assert(count >= 0);
-    ast *result = (ast *)malloc(sizeof(ast));
-    memset(result, 0, sizeof(ast));
+    ast *result = new (ast);
     result->type = type;
     result->first_line = first_line;
     result->is_empty = false;
     result->is_token = false;
     result->count = count;
+    result->tag = NULL;
     if (count > 0)
     {
-        result->children = (ast **)malloc(sizeof(ast *) * count);
+        result->children = newarr(ast, count);
         va_list valist;
         va_start(valist, count);
         for (int i = 0; i < count; i++)
