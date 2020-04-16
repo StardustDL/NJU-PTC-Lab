@@ -7,8 +7,85 @@
 #include "symbol.h"
 #include "common.h"
 
-void semantics_error(int type, int lineno, char *format, ...);
-void semantics_log(int lineno, char *format, ...);
+static void semantics_error(int type, int lineno, char *format, ...);
+static void semantics_log(int lineno, char *format, ...);
+
+static void error_var_nodef(int lineno, char *name)
+{
+    semantics_error(1, lineno, "No def var: %s", name);
+}
+static void error_func_nodef(int lineno, char *name)
+{
+    semantics_error(2, lineno, "No def func: %s", name);
+}
+static void error_var_redef(int lineno, char *name)
+{
+    semantics_error(3, lineno, "Re def var: %s", name);
+}
+static void error_func_redef(int lineno, char *name)
+{
+    semantics_error(4, lineno, "Re def func: %s", name);
+}
+static void error_assign_type(int lineno)
+{
+    semantics_error(5, lineno, "assign type not match");
+}
+static void error_assign_rval(int lineno)
+{
+    semantics_error(6, lineno, "assign to rval");
+}
+static void error_op_type(int lineno)
+{
+    semantics_error(7, lineno, "op type not match");
+}
+static void error_return_type(int lineno)
+{
+    semantics_error(8, lineno, "return type not match");
+}
+static void error_call_type(int lineno)
+{
+    semantics_error(9, lineno, "func call arg type not match");
+}
+static void error_index(int lineno)
+{
+    semantics_error(10, lineno, "not indexable");
+}
+static void error_call(int lineno)
+{
+    semantics_error(11, lineno, "not callable");
+}
+static void error_index_arg(int lineno)
+{
+    semantics_error(12, lineno, "not integer in index");
+}
+static void error_member(int lineno)
+{
+    semantics_error(13, lineno, "not memberable");
+}
+static void error_member_nodef(int lineno, char *name)
+{
+    semantics_error(14, lineno, "no member: %s", name);
+}
+static void error_member_def(int lineno, char *name)
+{
+    semantics_error(15, lineno, "invalid member def");
+}
+static void error_struct_redef(int lineno, char *name)
+{
+    semantics_error(16, lineno, "struct redef");
+}
+static void error_struct_nodef(int lineno, char *name)
+{
+    semantics_error(17, lineno, "struct nodef");
+}
+static void error_func_decnodef(int lineno, char *name)
+{
+    semantics_error(18, lineno, "func dec but no def");
+}
+static void error_func_decconflict(int lineno, char *name)
+{
+    semantics_error(19, lineno, "func dec conflict");
+}
 
 typedef struct
 {
@@ -42,13 +119,12 @@ typedef struct
 typedef struct
 {
     type *tp;
-    symbol *sym;
 } SES_Specifier;
 
 typedef struct
 {
-    type *tp;
     symbol *sym;
+    int lineno;
     env *ev;
 } SES_FunDec;
 
@@ -56,12 +132,6 @@ typedef struct
 {
     char *name;
 } SES_Tag;
-
-typedef struct
-{
-    type *tp;
-    char *name;
-} SES_StructSpecifier;
 
 typedef struct __SES_Exp
 {
@@ -72,6 +142,7 @@ typedef struct __SES_Exp
 typedef struct __SES_VarDec
 {
     symbol *sym;
+    int lineno;
     struct __SES_VarDec *next;
 } SES_VarDec;
 
@@ -115,7 +186,7 @@ static void analyse_ExtDefList(ast *tree, env *ev);
 static void analyse_ExtDef(ast *tree, env *ev);
 static SES_VarDec *analyse_ExtDecList(ast *tree, env *ev);
 static SES_Specifier *analyse_Specifier(ast *tree, env *ev);
-static SES_StructSpecifier *analyse_StructSpecifier(ast *tree, env *ev);
+static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev);
 static SES_Tag *analyse_OptTag(ast *tree, env *ev);
 static SES_Tag *analyse_Tag(ast *tree, env *ev);
 static SES_VarDec *analyse_VarDec(ast *tree, env *ev);
@@ -262,7 +333,7 @@ static SES_INT *analyse_INT(ast *tree, env *ev)
     SES_INT *tag = new (SES_INT);
     tag->tp = new_type_meta(MT_INT);
     tree->tag = tag;
-    return tree->tag;
+    return tag;
 }
 static SES_FLOAT *analyse_FLOAT(ast *tree, env *ev)
 {
@@ -271,7 +342,7 @@ static SES_FLOAT *analyse_FLOAT(ast *tree, env *ev)
     SES_FLOAT *tag = new (SES_FLOAT);
     tag->tp = new_type_meta(MT_FLOAT);
     tree->tag = tag;
-    return tree->tag;
+    return tag;
 }
 static SES_ID *analyse_ID(ast *tree, env *ev)
 {
@@ -282,7 +353,7 @@ static SES_ID *analyse_ID(ast *tree, env *ev)
     tag->name = tree->t_str;
     tag->sym = sym;
     tree->tag = tag;
-    return tree->tag;
+    return tag;
 }
 static SES_TYPE *analyse_TYPE(ast *tree, env *ev)
 {
@@ -291,7 +362,7 @@ static SES_TYPE *analyse_TYPE(ast *tree, env *ev)
     SES_TYPE *tag = new (SES_TYPE);
     tag->tp = new_type_meta(tree->t_type);
     tree->tag = tag;
-    return tree->tag;
+    return tag;
 }
 static void analyse_Program(ast *tree, env *ev)
 {
@@ -311,8 +382,11 @@ static void analyse_ExtDefList(ast *tree, env *ev)
 
     assert(tree->type == ST_ExtDefList);
 
-    for (int i = 0; i < tree->count; i++)
-        analyse_ExtDef(tree->children[i], ev);
+    if (tree->count == 2)
+    {
+        analyse_ExtDef(tree->children[0], ev);
+        analyse_ExtDefList(tree->children[1], ev);
+    }
 }
 static void analyse_ExtDef(ast *tree, env *ev)
 {
@@ -324,36 +398,49 @@ static void analyse_ExtDef(ast *tree, env *ev)
     //     ;
     assert(tree->type == ST_ExtDef);
 
-    ast *specifier = tree->children[0];
-
-    analyse_Specifier(specifier, ev);
+    SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
 
     if (tree->children[1]->type == ST_ExtDecList)
     {
-        ev->declare_type = ((SES_Specifier *)specifier->tag)->tp;
-        analyse_ExtDecList(tree->children[1], ev);
+        ev->declare_type = specifier->tp;
+        SES_VarDec *decs = analyse_ExtDecList(tree->children[1], ev);
+        while (decs != NULL)
+        {
+            symbol *existsym = st_findonly(ev->syms, decs->sym->name);
+            if (existsym != NULL)
+            {
+                // TODO conflict name
+            }
+            else
+            {
+                st_pushfront(ev->syms, decs->sym);
+            }
+        }
         ev->declare_type = NULL;
     }
     else if (tree->children[1]->type == ST_FunDec)
     {
-        ev->declare_type = ((SES_Specifier *)specifier->tag)->tp;
-        ast *fundec = tree->children[1];
-        analyse_FunDec(fundec, ev);
-        SES_FunDec *sf = (SES_FunDec *)fundec->tag;
+        ev->declare_type = specifier->tp;
+        SES_FunDec *sf = analyse_FunDec(tree->children[1], ev);
         if (tree->children[2]->type == ST_CompSt) // function definition
         {
             env *funcev = sf->ev;
             analyse_CompSt(tree->children[2], funcev);
             sf->sym->state = SS_DEF;
-            st_pushfront(ev->syms, sf->sym);
         }
         else if (tree->children[2]->type == ST_SEMI) // function declare
         {
             sf->sym->state = SS_DEC;
-            st_pushfront(ev->syms, sf->sym);
+        }
+        symbol *existsym = st_findonly(ev->syms, sf->sym->name);
+        if (existsym != NULL)
+        {
+            // TODO conflict name
         }
         else
-            assert(0);
+        {
+            st_pushfront(ev->syms, sf->sym);
+        }
     }
     else if (tree->children[1]->type == ST_SEMI)
     {
@@ -399,8 +486,7 @@ static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
     else if (child->type == ST_StructSpecifier)
     {
         analyse_StructSpecifier(child, ev);
-        SES_Specifier *tag = new (SES_Specifier);
-        tag->tp = ((SES_StructSpecifier *)child->tag)->tp;
+        SES_Specifier *tag = analyse_StructSpecifier(child, ev);
         tree->tag = tag;
     }
     else
@@ -409,7 +495,7 @@ static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
     }
     return tree->tag;
 }
-static SES_StructSpecifier *analyse_StructSpecifier(ast *tree, env *ev)
+static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "StructSpecifier");
     // StructSpecifier : STRUCT OptTag LC DefList RC
@@ -421,8 +507,7 @@ static SES_StructSpecifier *analyse_StructSpecifier(ast *tree, env *ev)
         analyse_Tag(tree->children[1], ev);
         SES_Tag *ctag = (SES_Tag *)tree->children[1]->tag;
 
-        SES_StructSpecifier *tag = new (SES_StructSpecifier);
-        //TODO
+        //TODO create new symbol
     }
     return tree->tag;
 }
