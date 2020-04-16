@@ -47,7 +47,7 @@ typedef enum
 
 typedef struct __symbol
 {
-    char name[40];
+    char name[64];
     type *tp;
     SYMBOL_state state;
 } symbol;
