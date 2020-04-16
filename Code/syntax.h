@@ -7,7 +7,7 @@ void syntax_set_log(bool enable);
 
 void syntax_prepare();
 
-struct ast* syntax_work();
+ast *syntax_work();
 
 bool syntax_has_passed();
 

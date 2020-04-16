@@ -2,7 +2,8 @@
 %{
 #include <ctype.h>
 #include <string.h>
-#include <limits.h>
+#include <stdlib.h>
+#include <errno.h>
 #include "ast.h"
 #include "lexical.h"
 #include "syntax.tab.h"
@@ -147,84 +148,18 @@ letter [a-zA-Z]
     yylval->t_uint = result;
     return INT;
 }
-{digit}+\.{digit}+ {
-    // normal float
-    float result = 0;
-    {
-        double temp = 0, factor = 1.0;
-        int i = 0;
-        for (; i < yyleng && yytext[i] != '.'; i++)
-        {
-            char c = yytext[i];
-            temp = temp * 10 + (c - '0');
-        }
-        for (i++; i < yyleng; i++)
-        {
-            char c = yytext[i];
-            factor /= 10.0;
-            temp += factor * (c - '0');
-        }
-        result = (float) temp;
-    }
-    lexical_log("FLOAT '%s' -> %f", yytext, result);
-    yylval->type = ST_FLOAT;
-    yylval->t_float = result;
-    return INT;
+{digit}+\.{digit}+ { 
+    yylval->t_float = strtof(yytext, NULL); SIMPLE_OP(FLOAT); 
+    /* normal float */
 }
-({digit}+\.{digit}*|\.{digit}+)[eE][+-]?{digit}+ {
-    // scientific notation float
-    float result = 0;
-    {
-        double temp = 0, factor = 1.0;
-        int i = 0;
-        for (; i < yyleng && yytext[i] != '.'; i++)
-        {
-            char c = yytext[i];
-            temp = temp * 10 + (c - '0');
-        }
-        for (i++; i < yyleng && yytext[i] != 'e' && yytext[i] != 'E'; i++)
-        {
-            char c = yytext[i];
-            factor /= 10.0;
-            temp += factor * (c - '0');
-        }
-        {
-            int exp = 0, isneg = 0;
-            i++;
-            if (yytext[i] == '+') {
-                isneg = 0;
-                i++;
-            }
-            else if (yytext[i] == '-') {
-                isneg = 1;
-                i++;
-            }
-            for(; i < yyleng; i++)
-            {
-                char c = yytext[i];
-                exp = exp * 10 + (c - '0');
-            }
-            double base = isneg ? 0.1 : 10;
-            double fac = 1.0;
-            while (exp > 0) { // quick pow for base^exp
-                if (exp & 1)
-                    fac *= base;
-                base *= base;
-                exp >>= 1;
-            }
-            temp *= fac; 
-        }
-        result = (float) temp;
-    }
-    lexical_log("FLOAT '%s' -> %f", yytext, result);
-    yylval->type = ST_FLOAT;
-    yylval->t_float = result;
-    return FLOAT;
+({digit}+\.{digit}*|\.{digit}+)[eE][+-]?{digit}+ { 
+    yylval->t_float = strtof(yytext, NULL); SIMPLE_OP(FLOAT); 
+    /* scientific notation float */ 
 }
 {digit}+\.|\.{digit}+ { lexical_error("Illegal float number '%s'", yytext); /* illegal normal float */ }
 ({digit}+\.{digit}*|\.{digit}+)[eE] { lexical_error("Illegal float number '%s'", yytext); /* illegal scientific notation float */ }
 "." { SIMPLE_OP(DOT); }
-"int"|"float" { yylval->t_type = yytext[0] == 'i' ? TYPE_INT : TYPE_FLOAT; SIMPLE_OP(TYPE); }
+"int"|"float" { yylval->t_type = yytext[0] == 'i' ? MT_INT : MT_FLOAT; SIMPLE_OP(TYPE); }
 "struct" { SIMPLE_OP(STRUCT); }
 "return" { SIMPLE_OP(RETURN); }
 "if" { SIMPLE_OP(IF); }

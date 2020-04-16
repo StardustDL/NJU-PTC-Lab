@@ -42,6 +42,7 @@ ExtDefList : ExtDef ExtDefList { $$ = new_ast(ST_ExtDefList, @$.first_line, 2, $
 ExtDef : Specifier ExtDecList SEMI { $$ = new_ast(ST_ExtDef, @$.first_line, 3, $1, $2, $3); }
     | Specifier SEMI { $$ = new_ast(ST_ExtDef, @$.first_line, 2, $1, $2); }
     | Specifier FunDec CompSt { $$ = new_ast(ST_ExtDef, @$.first_line, 3, $1, $2, $3); }
+    | Specifier FunDec SEMI { $$ = new_ast(ST_ExtDef, @$.first_line, 3, $1, $2, $3); }
     | error SEMI { syntax_error_atline(@1.ERROR_LINE, "Illegal definitions"); }
     | Specifier ExtDecList error { syntax_error_atline(@2.ERROR_LINE, "Missing ';'"); }
     | Specifier error { syntax_error_atline(@1.ERROR_LINE, "Missing ';'"); }
@@ -98,7 +99,7 @@ Stmt : Exp SEMI { $$ = new_ast(ST_Stmt, @$.first_line, 2, $1, $2); }
     | RETURN Exp SEMI { $$ = new_ast(ST_Stmt, @$.first_line, 3, $1, $2, $3); }
     | IF LP Exp RP Stmt %prec LOWER_THAN_ELSE{ $$ = new_ast(ST_Stmt, @$.first_line, 5, $1, $2, $3, $4, $5); }
     | IF LP Exp RP Stmt ELSE Stmt { $$ = new_ast(ST_Stmt, @$.first_line, 7, $1, $2, $3, $4, $5, $6, $7); }
-    | WHILE LP Exp RP Stmt { $$ = new_ast(ST_Stmt, @$.first_line, 8, $1, $2, $3, $4, $5); }
+    | WHILE LP Exp RP Stmt { $$ = new_ast(ST_Stmt, @$.first_line, 5, $1, $2, $3, $4, $5); }
     | error SEMI { syntax_error_atline(@1.ERROR_LINE, "Illegal statement"); }
     | Exp error { syntax_error_atline(@1.ERROR_LINE, "Missing ';'"); }
     | RETURN Exp error { syntax_error_atline(@2.ERROR_LINE, "Missing ';'"); }
@@ -122,6 +123,7 @@ DecList : Dec { $$ = new_ast(ST_DecList, @$.first_line, 1, $1); }
     | Dec COMMA DecList { $$ = new_ast(ST_DecList, @$.first_line, 3, $1, $2, $3); }
     | error COMMA { syntax_error_atline(@1.ERROR_LINE, "Illegal declaration"); }
     | Dec COMMA error { syntax_error_atline(@2.ERROR_LINE, "Missing declarations"); }
+    ;
 Dec : VarDec { $$ = new_ast(ST_Dec, @$.first_line, 1, $1); }
     | VarDec ASSIGNOP Exp { $$ = new_ast(ST_Dec, @$.first_line, 3, $1, $2, $3); }
     | VarDec ASSIGNOP error { syntax_error_atline(@2.ERROR_LINE, "Missing expression for assignment"); }

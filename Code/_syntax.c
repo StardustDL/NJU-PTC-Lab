@@ -9,12 +9,12 @@
 extern int yylineno;
 extern int yyparse();
 
-static struct ast* syntax_result = NULL;
+static ast *syntax_result = NULL;
 static bool enable_syntax_log = false;
 static bool syntax_is_passed = false;
 static char syntax_buffer[1024];
 
-void syntax_set_result(struct ast* result)
+void syntax_set_result(struct ast *result)
 {
     syntax_result = result;
 }
@@ -68,7 +68,8 @@ void syntax_log(char *format, ...)
     fprintf(stdout, "%s\n", syntax_buffer);
 }
 
-void yyerror(const char *format, ...) {
+void yyerror(const char *format, ...)
+{
     syntax_is_passed = false;
 
     if (strcmp(format, "syntax error") == 0)
@@ -78,7 +79,6 @@ void yyerror(const char *format, ...) {
     }
     else
     {
-
     }
 
     fprintf(stderr, "Error type B at Line %d: ", yylineno);
@@ -89,7 +89,7 @@ void yyerror(const char *format, ...) {
         int ret;
 
         va_start(aptr, format);
-        
+
         vsprintf(syntax_buffer, format + 15, aptr);
         va_end(aptr);
 
@@ -101,7 +101,7 @@ void yyerror(const char *format, ...) {
         int ret;
 
         va_start(aptr, format);
-        
+
         vsprintf(syntax_buffer, format, aptr);
         va_end(aptr);
 
@@ -125,7 +125,7 @@ bool syntax_has_passed()
     return syntax_is_passed && lexical_has_passed();
 }
 
-struct ast* syntax_work()
+ast *syntax_work()
 {
     yyparse();
     if (syntax_has_passed())

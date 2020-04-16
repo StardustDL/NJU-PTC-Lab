@@ -59,7 +59,7 @@ void lexical_set_error(bool enable)
     enable_lexical_error = enable;
 }
 
-void lexical_prepare(FILE* input)
+void lexical_prepare(FILE *input)
 {
     yyrestart(input);
     yylineno = 1;

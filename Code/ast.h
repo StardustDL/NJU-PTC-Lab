@@ -58,13 +58,19 @@ typedef enum
 
 typedef enum
 {
-    RELOP_L, RELOP_S, RELOP_LE, RELOP_SE, RELOP_E, RELOP_NE
+    RELOP_L,
+    RELOP_S,
+    RELOP_LE,
+    RELOP_SE,
+    RELOP_E,
+    RELOP_NE
 } RELOP_type;
 
 typedef enum
 {
-    TYPE_INT, TYPE_FLOAT
-} TYPE_type;
+    MT_INT,
+    MT_FLOAT
+} METATYPE_type;
 
 typedef struct __ast
 {
@@ -72,10 +78,9 @@ typedef struct __ast
     bool is_empty;
     bool is_token;
     int count;
-    struct __ast** children;
+    struct __ast **children;
     int first_line;
-    union 
-    {
+    union {
         unsigned int t_uint;
         float t_float;
         int t_type;
@@ -83,10 +88,10 @@ typedef struct __ast
     };
 } ast;
 
-ast* new_ast(int type, int first_line, int count, ...);
+ast *new_ast(int type, int first_line, int count, ...);
 
-void free_ast(ast* ast);
+void free_ast(ast *ast);
 
-void show_ast(ast* ast, int level);
+void show_ast(ast *ast, int level);
 
 #endif

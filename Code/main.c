@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "lexical.h"
 #include "syntax.h"
+#include "semantics.h"
 
 static FILE *get_input_file(int argc, char **argv)
 {
@@ -30,20 +31,24 @@ static int try_lexical(FILE *input)
     return result;
 }
 
-static struct ast* try_syntax(FILE *input)
+static struct ast *try_syntax(FILE *input)
 {
     lexical_prepare(input);
     syntax_prepare();
-    struct ast* result = syntax_work();
+    struct ast *result = syntax_work();
     fclose(input);
+    return result;
+}
+
+static bool try_semantics(ast *ast)
+{
+    semantics_prepare();
+    bool result = semantics_work(ast);
     return result;
 }
 
 int main(int argc, char **argv)
 {
-    // lexical_set_log(1);
-    // syntax_set_log(1);
-
     FILE *input = get_input_file(argc, argv);
 
     if (input == NULL)
@@ -51,20 +56,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    lexical_set_error(0);
-    try_lexical(input);
-    lexical_set_error(1);
-
-    input = get_input_file(argc, argv);
-
-    struct ast* ast = try_syntax(input);
-    if (ast != NULL)
-    {
-        show_ast(ast, 0);
-        return 0;
-    }
-    else
+    ast *tree = try_syntax(input);
+    if (tree == NULL)
     {
         return 1;
-    }    
+    }
+
+    if (!try_semantics(tree))
+        return 1;
+
+    return 0;
 }

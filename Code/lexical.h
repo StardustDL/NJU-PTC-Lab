@@ -8,7 +8,7 @@ void lexical_set_log(bool enable);
 
 void lexical_set_error(bool enable);
 
-void lexical_prepare(FILE* input);
+void lexical_prepare(FILE *input);
 
 bool lexical_has_passed();
 
