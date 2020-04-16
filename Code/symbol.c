@@ -6,7 +6,7 @@
 
 symbol *new_symbol(char *name, type *tp, SYMBOL_state state)
 {
-    symbol *result = new(symbol);
+    symbol *result = new (symbol);
     strcpy(result->name, name);
     result->tp = tp;
     result->state = state;
@@ -15,7 +15,7 @@ symbol *new_symbol(char *name, type *tp, SYMBOL_state state)
 
 symbol_table *new_symbol_table(symbol_table *parent)
 {
-    symbol_table *result = new(symbol_table);
+    symbol_table *result = new (symbol_table);
     result->parent = parent;
     result->table = NULL;
     return result;
@@ -49,8 +49,50 @@ symbol *st_find(symbol_table *table, char *name)
 void st_pushfront(symbol_table *table, symbol *sym)
 {
     assert(st_findonly(table, sym->name) == NULL);
-    symbol_item *si = new(symbol_item);
+    symbol_item *si = new (symbol_item);
     si->sym = sym;
     si->next = table->table;
     table->table = si;
+}
+
+int st_len(symbol_table *table)
+{
+    symbol_item *cur = table->table;
+    int ans = 0;
+    while (cur != NULL)
+    {
+        ans++;
+        cur = cur->next;
+    }
+    return ans;
+}
+
+symbol **st_to_arr(symbol_table *table)
+{
+    int len = st_len(table);
+    symbol **result = newarr(symbol, len);
+    symbol_item *cur = table->table;
+    int i = 0;
+    while (cur != NULL)
+    {
+        result[i] = cur->sym;
+        cur = cur->next;
+        i++;
+    }
+    return result;
+}
+
+symbol **st_revto_arr(symbol_table *table)
+{
+    int len = st_len(table);
+    symbol **result = newarr(symbol, len);
+    symbol_item *cur = table->table;
+    int i = 0;
+    while (cur != NULL)
+    {
+        result[len - 1 - i] = cur->sym;
+        cur = cur->next;
+        i++;
+    }
+    return result;
 }

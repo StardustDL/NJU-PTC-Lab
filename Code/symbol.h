@@ -12,7 +12,7 @@ typedef enum
     TC_STRUCT
 } TYPE_CLASS;
 
-struct __symbol;
+struct __symbol_table;
 
 typedef struct __type
 {
@@ -87,6 +87,12 @@ symbol_table *new_symbol_table(symbol_table *parent);
 symbol *st_find(symbol_table *table, char *name);
 
 symbol *st_findonly(symbol_table *table, char *name);
+
+int st_len(symbol_table *table);
+
+symbol** st_to_arr(symbol_table *table);
+
+symbol** st_revto_arr(symbol_table *table);
 
 void st_pushfront(symbol_table *table, symbol *sym);
 

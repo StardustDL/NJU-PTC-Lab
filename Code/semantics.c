@@ -90,14 +90,16 @@ static void error_func_decconflict(int lineno, char *name)
 typedef struct
 {
     symbol_table *syms;
-    union {
-        type *declare_type;
-    };
+    type *declare_type;
+    type *ret_type;
+    bool in_struct;
+    bool in_vardec;
 } env;
 
 typedef struct
 {
     type *tp;
+    int value;
 } SES_INT;
 
 typedef struct
@@ -119,6 +121,7 @@ typedef struct
 typedef struct
 {
     type *tp;
+    char *struct_name;
 } SES_Specifier;
 
 typedef struct
@@ -139,10 +142,18 @@ typedef struct __SES_Exp
     struct __SES_Exp *next;
 } SES_Exp;
 
+typedef struct __int_list
+{
+    int data;
+    struct __int_list *next;
+} int_list;
+
 typedef struct __SES_VarDec
 {
     symbol *sym;
+    bool hasinit;
     int lineno;
+    int_list *lens;
     struct __SES_VarDec *next;
 } SES_VarDec;
 
@@ -331,6 +342,7 @@ static SES_INT *analyse_INT(ast *tree, env *ev)
     semantics_log(tree->first_line, "%s", "INT");
     assert(tree->type == ST_INT);
     SES_INT *tag = new (SES_INT);
+    tag->value = tree->t_uint;
     tag->tp = new_type_meta(MT_INT);
     tree->tag = tag;
     return tag;
@@ -400,8 +412,55 @@ static void analyse_ExtDef(ast *tree, env *ev)
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
 
+    if (specifier->struct_name != NULL) // struct dec/def
+    {
+        symbol *existsym = st_find(ev->syms, specifier->struct_name);
+        if (existsym != NULL)
+        {
+            if (existsym->tp->cls == TC_STRUCT)
+            {
+                if (existsym->state == SS_DEF && specifier->tp != NULL) // struct and struct
+                {
+                    error_struct_redef(tree->first_line, specifier->struct_name);
+                }
+                else
+                {
+                    if (specifier->tp != NULL)
+                        existsym->state = SS_DEF;
+                }
+            }
+            else // var and struct
+            {
+                error_struct_redef(tree->first_line, specifier->struct_name);
+            }
+        }
+        else if (specifier->tp == NULL) // struct dec
+        {
+            symbol *sym = new_symbol(specifier->struct_name, new_type_struct(0, NULL), SS_DEC);
+            st_pushfront(ev->syms, sym);
+        }
+        else
+        {
+            symbol *sym = new_symbol(specifier->struct_name, specifier->tp, SS_DEF);
+            st_pushfront(ev->syms, sym);
+        }
+    }
+
     if (tree->children[1]->type == ST_ExtDecList)
     {
+        if (specifier->struct_name != NULL && specifier->tp == NULL) // struct dec
+        {
+            symbol *existsym = st_find(ev->syms, specifier->struct_name);
+            if (existsym == NULL || existsym->tp->cls != TC_STRUCT || existsym->state == SS_DEC)
+            {
+                error_struct_nodef(tree->first_line, specifier->struct_name);
+            }
+            else
+            {
+                specifier->tp = existsym->tp;
+            }
+        }
+
         ev->declare_type = specifier->tp;
         SES_VarDec *decs = analyse_ExtDecList(tree->children[1], ev);
         while (decs != NULL)
@@ -409,12 +468,13 @@ static void analyse_ExtDef(ast *tree, env *ev)
             symbol *existsym = st_findonly(ev->syms, decs->sym->name);
             if (existsym != NULL)
             {
-                // TODO conflict name
+                error_var_redef(decs->lineno, decs->sym->name);
             }
             else
             {
                 st_pushfront(ev->syms, decs->sym);
             }
+            decs = decs->next;
         }
         ev->declare_type = NULL;
     }
@@ -425,7 +485,9 @@ static void analyse_ExtDef(ast *tree, env *ev)
         if (tree->children[2]->type == ST_CompSt) // function definition
         {
             env *funcev = sf->ev;
+            funcev->ret_type = specifier->tp;
             analyse_CompSt(tree->children[2], funcev);
+            funcev->ret_type = NULL;
             sf->sym->state = SS_DEF;
         }
         else if (tree->children[2]->type == ST_SEMI) // function declare
@@ -433,9 +495,28 @@ static void analyse_ExtDef(ast *tree, env *ev)
             sf->sym->state = SS_DEC;
         }
         symbol *existsym = st_findonly(ev->syms, sf->sym->name);
+        int lineno = tree->children[1]->first_line;
         if (existsym != NULL)
         {
-            // TODO conflict name
+            if (existsym->tp->cls == TC_FUNC)
+            {
+                if (existsym->state == SS_DEF)
+                {
+                    error_func_redef(lineno, sf->sym->name);
+                }
+                else if (!type_full_eq(existsym->tp, sf->sym->tp, false))
+                {
+                    error_func_decconflict(lineno, sf->sym->name);
+                }
+                else if (sf->sym->state == SS_DEF)
+                {
+                    existsym->state = SS_DEF;
+                }
+            }
+            else
+            {
+                error_func_redef(lineno, sf->sym->name);
+            }
         }
         else
         {
@@ -445,8 +526,6 @@ static void analyse_ExtDef(ast *tree, env *ev)
     else if (tree->children[1]->type == ST_SEMI)
     {
     }
-    else
-        assert(0);
 }
 static SES_VarDec *analyse_ExtDecList(ast *tree, env *ev)
 {
@@ -461,10 +540,6 @@ static SES_VarDec *analyse_ExtDecList(ast *tree, env *ev)
     {
         first->next = analyse_ExtDecList(tree->children[2], ev);
     }
-    else
-    {
-        assert(0);
-    }
     tree->tag = first;
     return first;
 }
@@ -476,24 +551,20 @@ static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
     //     ;
     assert(tree->type == ST_Specifier);
     ast *child = tree->children[0];
+    SES_Specifier *tag = NULL;
     if (child->type == ST_TYPE)
     {
-        analyse_TYPE(child, ev);
-        SES_Specifier *tag = new (SES_Specifier);
-        tag->tp = ((SES_TYPE *)child->tag)->tp;
-        tree->tag = tag;
+        tag = new (SES_Specifier);
+        SES_TYPE *ct = analyse_TYPE(child, ev);
+        tag->tp = ct->tp;
     }
     else if (child->type == ST_StructSpecifier)
     {
-        analyse_StructSpecifier(child, ev);
-        SES_Specifier *tag = analyse_StructSpecifier(child, ev);
-        tree->tag = tag;
+        tag = analyse_StructSpecifier(child, ev);
     }
-    else
-    {
-        assert(0);
-    }
-    return tree->tag;
+    assert(tag != NULL);
+    tree->tag = tag;
+    return tag;
 }
 static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
 {
@@ -502,13 +573,33 @@ static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
     //     | STRUCT Tag
     //     ;
     assert(tree->type == ST_StructSpecifier);
+    SES_Specifier *tag = NULL;
     if (tree->count == 2)
     {
-        analyse_Tag(tree->children[1], ev);
-        SES_Tag *ctag = (SES_Tag *)tree->children[1]->tag;
+        SES_Tag *ctag = analyse_Tag(tree->children[1], ev);
 
-        //TODO create new symbol
+        tag = new (SES_Specifier);
+        tag->tp = NULL;
+        tag->struct_name = ctag->name;
     }
+    else
+    {
+        SES_Tag *ctag = analyse_OptTag(tree->children[1], ev);
+
+        env *cev = new (env);
+        cev->syms = new_symbol_table(ev->syms);
+        cev->in_struct = true;
+        analyse_DefList(tree->children[3], cev);
+        cev->in_struct = false;
+
+        tag = new (SES_Specifier);
+        tag->struct_name = ctag->name;
+        int memlen = st_len(cev->syms);
+        type *tp = new_type_struct(memlen, st_revto_arr(cev->syms));
+        tag->tp = tp;
+    }
+    tree->tag = tag;
+    assert(tag != NULL);
     return tree->tag;
 }
 static SES_Tag *analyse_OptTag(ast *tree, env *ev)
@@ -555,14 +646,109 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
     //     | VarDec LB INT RB
     //     ;
     assert(tree->type == ST_VarDec);
+    assert(ev->declare_type != NULL);
+    bool invardec = ev->in_vardec;
+    if (tree->count == 1)
+    {
+        SES_ID *id = analyse_ID(tree->children[0], ev);
+        SES_VarDec *tag = new (SES_VarDec);
+        if (invardec)
+        {
+            tag->sym = new_symbol(id->name, NULL, SS_DEC);
+        }
+        else
+        {
+            tag->sym = new_symbol(id->name, ev->declare_type, SS_DEC);
+        }
+        tree->tag = tag;
+        return tag;
+    }
+    else
+    {
+        ev->in_vardec = true;
+        SES_VarDec *subvar = analyse_VarDec(tree->children[0], ev);
+        SES_INT *len = analyse_INT(tree->children[2], ev);
+        ev->in_vardec = invardec;
+        int_list *li = new (int_list);
+        li->data = len->value;
+        li->next = subvar->lens;
+        subvar->lens = li;
+        if (invardec)
+        {
+            tree->tag = subvar;
+            return subvar;
+        }
+        else
+        {
+            int listlen = 0, i = 0;
+            int_list *cur = subvar->lens;
+            while (cur != NULL)
+            {
+                listlen++;
+                cur = cur->next;
+            }
+            int *lens = (int *)malloc(listlen * sizeof(int));
+            cur = subvar->lens;
+            while (cur != NULL)
+            {
+                lens[listlen - 1 - i] = cur->data;
+                i++;
+                cur = cur->next;
+            }
+            type *arrtp = new_type_array(ev->declare_type, listlen, lens);
+            subvar->sym->tp = arrtp;
+            return subvar;
+        }
+    }
+    assert(0);
 }
 static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "FunDec");
+    assert(ev->declare_type != NULL);
     // FunDec : ID LP VarList RP
     //     | ID LP RP
     //     ;
     assert(tree->type == ST_FunDec);
+
+    SES_ID *id = analyse_ID(tree->children[0], ev);
+    SES_FunDec *tag = new (SES_FunDec);
+    tag->lineno = tree->first_line;
+
+    env *funcev = new (env);
+    funcev->syms = new_symbol_table(ev->syms);
+    tag->ev = funcev;
+
+    if (tree->count == 3)
+    {
+        symbol *sym = new_symbol(id->name, new_type_func(0, NULL, ev->declare_type), SS_DEC);
+        tag->sym = sym;
+    }
+    else
+    {
+        SES_VarDec *varlist = analyse_VarList(tree->children[2], funcev);
+        int len = 0;
+        SES_VarDec *cur = varlist;
+        while (cur != NULL)
+        {
+            len++;
+            cur = cur->next;
+        }
+        type **args = newarr(type, len);
+        cur = varlist;
+        int i = 0;
+        while (cur != NULL)
+        {
+            args[i] = cur->sym->tp;
+            i++;
+            cur = cur->next;
+        }
+        type *ftp = new_type_func(len, args, ev->declare_type);
+        symbol *sym = new_symbol(id->name, ftp, SS_DEC);
+        tag->sym = sym;
+    }
+    tree->tag = tag;
+    return tag;
 }
 static SES_VarDec *analyse_VarList(ast *tree, env *ev)
 {
@@ -577,10 +763,6 @@ static SES_VarDec *analyse_VarList(ast *tree, env *ev)
     {
         first->next = analyse_VarList(tree->children[2], ev);
     }
-    else
-    {
-        assert(0);
-    }
     tree->tag = first;
     return first;
 }
@@ -590,6 +772,27 @@ static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
     // ParamDec : Specifier VarDec
     //     ;
     assert(tree->type == ST_ParamDec);
+
+    SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
+    assert(ev->declare_type == NULL);
+    ev->declare_type = specifier->tp;
+
+    SES_VarDec *vardec = analyse_VarDec(tree->children[1], ev);
+    symbol *existsym = st_findonly(ev->syms, vardec->sym->name);
+    if (existsym != NULL)
+    {
+        error_var_redef(vardec->lineno, vardec->sym->name);
+    }
+    else
+    {
+        st_pushfront(ev->syms, vardec->sym);
+    }
+
+    ev->declare_type = NULL;
+
+    tree->tag = vardec;
+
+    return vardec;
 }
 static void analyse_CompSt(ast *tree, env *ev)
 {
@@ -633,6 +836,40 @@ static void analyse_Stmt(ast *tree, env *ev)
     //     | WHILE LP Exp RP Stmt
     //     ;
     assert(tree->type == ST_Stmt);
+    if (tree->children[0]->type == ST_Exp)
+    {
+        analyse_Exp(tree->children[0], ev);
+    }
+    else if (tree->children[0]->type == ST_CompSt)
+    {
+        analyse_CompSt(tree->children[0], ev);
+    }
+    else if (tree->children[0]->type == ST_RETURN)
+    {
+        assert(ev->ret_type != NULL);
+        SES_Exp *exp = analyse_Exp(tree->children[1], ev);
+        if (!type_full_eq(ev->ret_type, exp->tp, false))
+        {
+            error_return_type(tree->children[1]->first_line);
+        }
+    }
+    else if (tree->children[0]->type == ST_IF)
+    {
+        SES_Exp *exp = analyse_Exp(tree->children[2], ev);
+        if (exp->tp->cls != TC_META || exp->tp->metatype != MT_INT)
+        {
+            error_op_type(tree->children[2]->first_line);
+        }
+        if (tree->count == 7) // if-else
+        {
+            analyse_Stmt(tree->children[4], ev);
+            analyse_Stmt(tree->children[6], ev);
+        }
+        else // only if
+        {
+            analyse_Stmt(tree->children[4], ev);
+        }
+    }
 }
 static void analyse_DefList(ast *tree, env *ev)
 {
@@ -657,6 +894,52 @@ static void analyse_Def(ast *tree, env *ev)
     // Def : Specifier DecList SEMI
     //     ;
     assert(tree->type == ST_Def);
+
+    SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
+
+    if (specifier->struct_name != NULL && specifier->tp == NULL) // struct dec
+    {
+        symbol *existsym = st_find(ev->syms, specifier->struct_name);
+        if (existsym == NULL || existsym->tp->cls != TC_STRUCT || existsym->state == SS_DEC)
+        {
+            error_struct_nodef(tree->first_line, specifier->struct_name);
+        }
+        else
+        {
+            specifier->tp = existsym->tp;
+        }
+    }
+
+    ev->declare_type = specifier->tp;
+    SES_VarDec *decs = analyse_DecList(tree->children[1], ev);
+    while (decs != NULL)
+    {
+        symbol *existsym = st_findonly(ev->syms, decs->sym->name);
+        if (existsym != NULL)
+        {
+            if (ev->in_struct)
+            {
+                error_member_def(decs->lineno, decs->sym->name);
+            }
+            else
+            {
+                error_var_redef(decs->lineno, decs->sym->name);
+            }
+        }
+        else
+        {
+            if (ev->in_struct && decs->hasinit) // init in struct
+            {
+                error_member_def(decs->lineno, decs->sym->name);
+            }
+            else
+            {
+                st_pushfront(ev->syms, decs->sym);
+            }
+        }
+        decs = decs->next;
+    }
+    ev->declare_type = NULL;
 }
 static SES_VarDec *analyse_DecList(ast *tree, env *ev)
 {
@@ -682,16 +965,21 @@ static SES_VarDec *analyse_Dec(ast *tree, env *ev)
     //     ;
     assert(tree->type == ST_Dec);
 
-    SES_VarDec *tag = analyse_VarDec(tree->children[0], ev);
-    if (tree->count > 1)
+    SES_VarDec *var = analyse_VarDec(tree->children[0], ev);
+    if (tree->count == 1)
     {
     }
     else
     {
-        //TODO check exp type assign
+        var->hasinit = true;
+        SES_Exp *exp = analyse_Exp(tree->children[2], ev);
+        if (!type_full_eq(var->sym->tp, exp->tp, false))
+        {
+            error_assign_type(tree->first_line);
+        }
     }
-    tree->tag = tag;
-    return tag;
+    tree->tag = var;
+    return var;
 }
 static SES_Exp *analyse_Exp(ast *tree, env *ev)
 {
