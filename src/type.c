@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "symbol.h"
 #include "type.h"
 #include "assert.h"
@@ -86,8 +87,59 @@ type *new_type_meta(METATYPE_type metatype)
     assert(0);
 }
 
+static void _show_type(type *a, int level)
+{
+    for (int i = 0; i < level; i++)
+        printf("  ");
+    switch (a->cls)
+    {
+    case TC_META:
+        puts(a->metatype == MT_INT ? "INT" : "FLOAT");
+        break;
+    case TC_UNIT:
+        puts("UNIT");
+        break;
+    case TC_ANY:
+        puts("ANY");
+        break;
+    case TC_NEVER:
+        puts("NEVER");
+        break;
+    case TC_ARRAY:
+        printf("%dd-Array\n", a->rank);
+        _show_type(a->base, level + 1);
+        break;
+    case TC_FUNC:
+        printf("Func(argc=%d)\n", a->argc);
+        for (int i = 0; i < a->argc; i++)
+            _show_type(a->args[i], level + 1);
+        _show_type(a->ret, level + 1);
+        break;
+    case TC_STRUCT:
+        printf("Struct(memc=%d)\n", a->memc);
+        for (int i = 0; i < a->memc; i++)
+        {
+            // if (strcmp(a->mems[i]->name, b->mems[i]->name) != 0) return false;
+            _show_type(a->mems[i]->tp, level + 1);
+        }
+        break;
+    default:
+        printf("%d\n", a->cls);
+        assert(0);
+    }
+}
+
+void show_type(type *a)
+{
+    _show_type(a, 0);
+}
+
 bool type_full_eq(type *a, type *b, bool strict_arr)
 {
+    // printf("a=\n");
+    // show_type(a);
+    // printf("b=\n");
+    // show_type(b);
     if (a == b)
         return true;
     if (a->cls == TC_ANY || b->cls == TC_ANY)

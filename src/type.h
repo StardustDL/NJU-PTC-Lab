@@ -3,6 +3,8 @@
 
 #include "symbol.h"
 
+void show_type(type *a);
+
 bool type_full_eq(type *a, type *b, bool strict_arr);
 
 bool type_can_call(type *a);

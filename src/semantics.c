@@ -147,6 +147,7 @@ typedef struct __SES_Exp
 {
     type *tp;
     int lineno;
+    symbol *sym;
     struct __SES_Exp *next;
 } SES_Exp;
 
@@ -200,7 +201,10 @@ static bool resolve_struct_specifier_dec(SES_Specifier *sp, env *ev)
 static void check_create_struct_specifier(SES_Specifier *specifier, env *ev, int lineno)
 {
     assert(is_struct_specifier(specifier));
-    symbol *existsym = st_find(ev->syms, specifier->struct_name);
+    symbol_table *global = ev->syms;
+    while (global->parent != NULL)
+        global = global->parent;
+    symbol *existsym = st_find(global, specifier->struct_name);
     if (existsym != NULL)
     {
         if (existsym->is_struct)
@@ -226,13 +230,13 @@ static void check_create_struct_specifier(SES_Specifier *specifier, env *ev, int
     {
         symbol *sym = new_symbol(specifier->struct_name, lineno, new_type_struct(0, NULL), SS_DEC);
         sym->is_struct = true;
-        st_pushfront(ev->syms, sym);
+        st_pushfront(global, sym);
     }
     else
     {
         symbol *sym = new_symbol(specifier->struct_name, lineno, specifier->tp, SS_DEF);
         sym->is_struct = true;
-        st_pushfront(ev->syms, sym);
+        st_pushfront(global, sym);
     }
 }
 
@@ -514,7 +518,19 @@ static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
         tag = new (SES_Specifier);
         tag->struct_name = ctag->name;
         int memlen = st_len(cev->syms);
-        type *tp = new_type_struct(memlen, st_revto_arr(cev->syms));
+        symbol **syms = st_revto_arr(cev->syms);
+
+        for (int i = 0; i < memlen; i++)
+        {
+            if (!syms[i]->is_struct)
+                continue;
+            for (int j = i; j < memlen - 1; j++)
+                syms[j] = syms[j + 1];
+            memlen--;
+            i--;
+        }
+
+        type *tp = new_type_struct(memlen, syms);
         tag->tp = tp;
     }
     tree->tag = tag;
@@ -709,7 +725,13 @@ static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
 
     SES_VarDec *vardec = analyse_VarDec(tree->children[1], ev);
     symbol *existsym = st_findonly(ev->syms, vardec->sym->name);
+    symbol *existsymall = st_find(ev->syms, vardec->sym->name);
+
     if (existsym != NULL)
+    {
+        error_var_redef(vardec->lineno, vardec->sym->name);
+    }
+    else if (existsymall != NULL && existsymall->is_struct)
     {
         error_var_redef(vardec->lineno, vardec->sym->name);
     }
@@ -881,10 +903,7 @@ static void analyse_Def(ast *tree, env *ev)
             {
                 error_member_def(decs->lineno, decs->sym->name);
             }
-            else
-            {
-                st_pushfront(ev->syms, decs->sym);
-            }
+            st_pushfront(ev->syms, decs->sym);
         }
         decs = decs->next;
     }
@@ -978,6 +997,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             }
             else
             {
+                tag->sym = val->sym;
                 tag->tp = val->sym->tp;
             }
         }
@@ -987,7 +1007,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         SES_Exp *exp = analyse_Exp(tree->children[1], ev);
         if (tree->children[0]->type == ST_MINUS) // MINUS Exp
         {
-            if (!type_can_arithmetic(exp->tp))
+            if (!type_can_arithmetic(exp->tp) || exp->sym != NULL && exp->sym->is_struct)
             {
                 error_op_type(tree->children[1]->first_line);
                 tag->tp = exp->tp;
@@ -999,7 +1019,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         }
         else if (tree->children[0]->type == ST_NOT) // NOT Exp
         {
-            if (!type_can_logic(exp->tp))
+            if (!type_can_logic(exp->tp) || exp->sym != NULL && exp->sym->is_struct)
             {
                 error_op_type(tree->children[1]->first_line);
                 tag->tp = exp->tp;
@@ -1016,6 +1036,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         {
             SES_Exp *exp = analyse_Exp(tree->children[1], ev);
             tag->tp = exp->tp;
+            tag->sym = exp->sym;
         }
         else if (tree->children[0]->type == ST_ID) // ID LP RP
         {
@@ -1028,11 +1049,6 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             else if (!type_can_call(val->sym->tp))
             {
                 error_call(tree->first_line);
-                tag->tp = new_type_never();
-            }
-            else if (val->sym->state != SS_DEF)
-            {
-                error_func_nodef(tree->first_line, val->name);
                 tag->tp = new_type_never();
             }
             else if (val->sym->tp->argc != 0)
@@ -1049,7 +1065,11 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         {
             SES_Exp *exp = analyse_Exp(tree->children[0], ev);
             SES_ID *id = analyse_ID(tree->children[2], ev);
-            if (!type_can_member(exp->tp))
+            if (exp->sym != NULL && exp->sym->is_struct)
+            {
+                error_member(tree->children[1]->first_line);
+            }
+            else if (!type_can_member(exp->tp))
             {
                 error_member(tree->first_line);
                 tag->tp = new_type_never();
@@ -1073,12 +1093,12 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             tag = new (SES_Exp);
             SES_Exp *exp1 = analyse_Exp(tree->children[0], ev);
             SES_Exp *exp2 = analyse_Exp(tree->children[2], ev);
-            if (!type_can_logic(exp1->tp))
+            if (!type_can_logic(exp1->tp) || (exp1->sym != NULL && exp1->sym->is_struct))
             {
                 error_op_type(tree->children[0]->first_line);
                 tag->tp = new_type_meta(MT_INT);
             }
-            else if (!type_can_logic(exp2->tp))
+            else if (!type_can_logic(exp2->tp) || (exp2->sym != NULL && exp2->sym->is_struct))
             {
                 error_op_type(tree->children[2]->first_line);
                 tag->tp = new_type_meta(MT_INT);
@@ -1106,7 +1126,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
                 error_assign_rval(tree->first_line);
                 tag->tp = new_type_never();
             }
-            else if (!type_full_eq(exp1->tp, exp2->tp, false))
+            else if (!type_full_eq(exp1->tp, exp2->tp, false) || exp1->sym != NULL && exp1->sym->is_struct || exp2->sym != NULL && exp2->sym->is_struct)
             {
                 error_assign_type(tree->first_line);
                 tag->tp = new_type_never();
@@ -1157,11 +1177,6 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             else if (!type_can_call(val->sym->tp))
             {
                 error_call(tree->first_line);
-                tag->tp = new_type_never();
-            }
-            else if (val->sym->state != SS_DEF)
-            {
-                error_func_nodef(tree->first_line, val->name);
                 tag->tp = new_type_never();
             }
             else
