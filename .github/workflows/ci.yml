@@ -15,7 +15,7 @@ jobs:
           sudo apt-get install -yq dos2unix
           sudo apt-get install -yq python3
           dos2unix $(find -name *.sh)
-          chmod +x test/check.sh
+          chmod +x test/compile.sh
           chmod +x test/A/check.sh
           chmod +x test/A/run.sh
           chmod +x test/B/run.sh
