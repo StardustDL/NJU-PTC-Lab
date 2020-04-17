@@ -1,9 +1,8 @@
 .vscode
-*.output
-*.out
-*.o
-lex.yy.c
-syntax.tab.c
-syntax.tab.h
-
-parser
+src/*.output
+src/*.out
+src/*.o
+src/lex.yy.c
+src/syntax.tab.c
+src/syntax.tab.h
+src/parser

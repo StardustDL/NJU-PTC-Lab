@@ -354,7 +354,7 @@ static SES_FLOAT *analyse_FLOAT(ast *tree, env *ev)
 }
 static SES_ID *analyse_ID(ast *tree, env *ev)
 {
-    semantics_log(tree->first_line, "%s", "ID");
+    semantics_log(tree->first_line, "%s (%s)", "ID", tree->t_str);
     assert(tree->type == ST_ID);
     symbol *sym = st_find(ev->syms, tree->t_str);
     SES_ID *tag = new (SES_ID);
@@ -1293,7 +1293,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             if (exp2->tp->cls != TC_META || exp2->tp->metatype != MT_INT)
             {
                 error_index_arg(tree->children[2]->first_line);
-                tag->tp = new_type_unit();
+                tag->tp = type_array_descending(exp1->tp);
             }
             else if (exp1->tp->cls != TC_ARRAY)
             {

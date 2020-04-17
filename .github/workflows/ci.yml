@@ -12,12 +12,26 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -yq bison flex
+          sudo apt-get install -yq dos2unix
+          sudo apt-get install -yq python3
+          dos2unix $(find -name *.sh)
+          chmod +x test/check.sh
+          chmod +x test/A/check.sh
+          chmod +x test/A/run.sh
+          chmod +x test/B/run.sh
       - name: Build
         run: |
-          cd Code
+          cd src
           make
-      - name: Test
+      - name: Try Compile
         run: |
-          cd Test
-          chmod +x check.sh
-          ./check.sh
+          cd test
+          ./compile.sh
+      - name: Test Syntax & Lexical
+        run: |
+          cd test/A
+          ./run.sh ../../Code/parser
+      - name: Test Semantics
+        run: |
+          cd test/B
+          ./run.sh ../../Code/parser

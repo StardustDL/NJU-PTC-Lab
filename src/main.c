@@ -23,10 +23,22 @@ static FILE *get_input_file(int argc, char **argv)
     }
 }
 
-static int try_lexical(FILE *input)
+static char *get_option(int argc, char **argv)
+{
+    if (argc > 2)
+    {
+        return argv[2];
+    }
+    else
+    {
+        return "";
+    }
+}
+
+static bool try_lexical(FILE *input)
 {
     lexical_prepare(input);
-    int result = lexical_test();
+    bool result = lexical_test();
     fclose(input);
     return result;
 }
@@ -56,13 +68,37 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    char *option = get_option(argc, argv);
+    if (strcmp(option, "--lexcial") == 0)
+    {
+        if (try_lexical(input))
+        {
+            return 0;
+        }
+        else
+        {
+            return 1;
+        }
+    }
+    else if (strcmp(option, "--syntax") == 0)
+    {
+        ast *tree = try_syntax(input);
+        if (tree != NULL)
+        {
+            show_ast(tree, 0);
+            return 0;
+        }
+        else
+        {
+            return 1;
+        }
+    }
+
     ast *tree = try_syntax(input);
     if (tree == NULL)
     {
         return 1;
     }
-
-    // show_ast(tree, 0);
 
     // semantics_set_log(true);
 
