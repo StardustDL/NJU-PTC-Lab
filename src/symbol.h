@@ -52,6 +52,7 @@ typedef struct __symbol
 {
     char name[64];
     int lineno;
+    bool is_struct;
     type *tp;
     SYMBOL_state state;
 } symbol;

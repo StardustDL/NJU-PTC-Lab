@@ -142,9 +142,7 @@ type *type_array_descending(type *t)
     assert(t->cls == TC_ARRAY);
     if (t->rank > 1)
     {
-        type *result = new_type(TC_ARRAY);
-        result->rank = t->rank - 1;
-        result->lens = t->lens + 1;
+        type *result = new_type_array(t->base, t->rank - 1, t->lens + 1);
         return result;
     }
     else
@@ -157,20 +155,6 @@ type *type_array_descending(type *t)
 bool type_can_call(type *a)
 {
     return a->cls == TC_FUNC;
-}
-
-bool type_can_callargs(type *a, int argc, type **args)
-{
-    if (!type_can_call(a))
-        return false;
-    if (argc != a->argc)
-        return false;
-    for (int i = 0; i < argc; i++)
-    {
-        if (!type_full_eq(args[i], a->args[i], false))
-            return false;
-    }
-    return true;
 }
 
 bool type_can_index(type *a)

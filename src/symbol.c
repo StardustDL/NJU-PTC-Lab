@@ -50,6 +50,9 @@ symbol *st_find(symbol_table *table, char *name)
 void st_pushfront(symbol_table *table, symbol *sym)
 {
     assert(st_findonly(table, sym->name) == NULL);
+
+    // printf("st->push %s\n", sym->name);
+
     symbol_item *si = new (symbol_item);
     si->sym = sym;
     si->next = table->table;

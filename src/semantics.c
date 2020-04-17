@@ -197,6 +197,45 @@ static bool resolve_struct_specifier_dec(SES_Specifier *sp, env *ev)
     return true;
 }
 
+static void check_create_struct_specifier(SES_Specifier *specifier, env *ev, int lineno)
+{
+    assert(is_struct_specifier(specifier));
+    symbol *existsym = st_find(ev->syms, specifier->struct_name);
+    if (existsym != NULL)
+    {
+        if (existsym->is_struct)
+        {
+            if (existsym->state == SS_DEF && specifier->tp != NULL) // struct and struct
+            {
+                error_struct_redef(lineno, specifier->struct_name);
+                specifier->tp = existsym->tp; // use origin tp
+            }
+            else if (existsym->state == SS_DEC && specifier->tp != NULL)
+            {
+                existsym->tp = specifier->tp;
+                existsym->state = SS_DEF;
+            }
+        }
+        else // var and struct
+        {
+            error_struct_redef(lineno, specifier->struct_name);
+            specifier->tp = new_type_never();
+        }
+    }
+    else if (specifier->tp == NULL) // struct dec
+    {
+        symbol *sym = new_symbol(specifier->struct_name, lineno, new_type_struct(0, NULL), SS_DEC);
+        sym->is_struct = true;
+        st_pushfront(ev->syms, sym);
+    }
+    else
+    {
+        symbol *sym = new_symbol(specifier->struct_name, lineno, specifier->tp, SS_DEF);
+        sym->is_struct = true;
+        st_pushfront(ev->syms, sym);
+    }
+}
+
 #pragma endregion
 
 #pragma region
@@ -313,38 +352,9 @@ static void analyse_ExtDef(ast *tree, env *ev)
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
 
-    if (specifier->struct_name != NULL) // struct dec/def
+    if (is_struct_specifier(specifier))
     {
-        symbol *existsym = st_find(ev->syms, specifier->struct_name);
-        if (existsym != NULL)
-        {
-            if (existsym->tp->cls == TC_STRUCT)
-            {
-                if (existsym->state == SS_DEF && specifier->tp != NULL) // struct and struct
-                {
-                    error_struct_redef(tree->first_line, specifier->struct_name);
-                }
-                else
-                {
-                    if (specifier->tp != NULL)
-                        existsym->state = SS_DEF;
-                }
-            }
-            else // var and struct
-            {
-                error_struct_redef(tree->first_line, specifier->struct_name);
-            }
-        }
-        else if (specifier->tp == NULL) // struct dec
-        {
-            symbol *sym = new_symbol(specifier->struct_name, tree->first_line, new_type_struct(0, NULL), SS_DEC);
-            st_pushfront(ev->syms, sym);
-        }
-        else
-        {
-            symbol *sym = new_symbol(specifier->struct_name, tree->first_line, specifier->tp, SS_DEF);
-            st_pushfront(ev->syms, sym);
-        }
+        check_create_struct_specifier(specifier, ev, tree->first_line);
     }
 
     if (tree->children[1]->type == ST_ExtDecList)
@@ -362,7 +372,12 @@ static void analyse_ExtDef(ast *tree, env *ev)
         while (decs != NULL)
         {
             symbol *existsym = st_findonly(ev->syms, decs->sym->name);
+            symbol *existsymall = st_find(ev->syms, decs->sym->name);
             if (existsym != NULL)
+            {
+                error_var_redef(decs->lineno, decs->sym->name);
+            }
+            else if (existsymall != NULL && existsymall->is_struct)
             {
                 error_var_redef(decs->lineno, decs->sym->name);
             }
@@ -380,11 +395,11 @@ static void analyse_ExtDef(ast *tree, env *ev)
         SES_FunDec *sf = analyse_FunDec(tree->children[1], ev);
         if (tree->children[2]->type == ST_CompSt) // function definition
         {
+            sf->sym->state = SS_DEF; // allow recusion
             env *funcev = sf->ev;
             funcev->ret_type = specifier->tp;
             analyse_CompSt(tree->children[2], funcev);
             funcev->ret_type = NULL;
-            sf->sym->state = SS_DEF;
         }
         else if (tree->children[2]->type == ST_SEMI) // function declare
         {
@@ -645,6 +660,8 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
         symbol *sym = new_symbol(id->name, tree->first_line, ftp, SS_DEC);
         tag->sym = sym;
     }
+
+    st_pushfront(funcev->syms, tag->sym);
     tree->tag = tag;
     return tag;
 }
@@ -743,15 +760,15 @@ static void analyse_Stmt(ast *tree, env *ev)
     //     | WHILE LP Exp RP Stmt
     //     ;
     assert(tree->type == ST_Stmt);
-    if (tree->children[0]->type == ST_Exp)
+    if (tree->children[0]->type == ST_Exp) // Exp SEMI
     {
         analyse_Exp(tree->children[0], ev);
     }
-    else if (tree->children[0]->type == ST_CompSt)
+    else if (tree->children[0]->type == ST_CompSt) // CompSt
     {
         analyse_CompSt(tree->children[0], ev);
     }
-    else if (tree->children[0]->type == ST_RETURN)
+    else if (tree->children[0]->type == ST_RETURN) // RETURN Exp SEMI
     {
         assert(ev->ret_type != NULL);
         SES_Exp *exp = analyse_Exp(tree->children[1], ev);
@@ -763,19 +780,28 @@ static void analyse_Stmt(ast *tree, env *ev)
     else if (tree->children[0]->type == ST_IF)
     {
         SES_Exp *exp = analyse_Exp(tree->children[2], ev);
-        if (exp->tp->cls != TC_META || exp->tp->metatype != MT_INT)
+        if (!type_can_logic(exp->tp))
         {
             error_op_type(tree->children[2]->first_line);
         }
-        if (tree->count == 7) // if-else
+        if (tree->count == 7) // IF LP Exp RP Stmt ELSE Stmt
         {
             analyse_Stmt(tree->children[4], ev);
             analyse_Stmt(tree->children[6], ev);
         }
-        else // only if
+        else // IF LP Exp RP Stmt
         {
             analyse_Stmt(tree->children[4], ev);
         }
+    }
+    else if (tree->children[0]->type == ST_WHILE) // WHILE LP Exp RP Stmt
+    {
+        SES_Exp *exp = analyse_Exp(tree->children[2], ev);
+        if (!type_can_logic(exp->tp))
+        {
+            error_op_type(tree->children[2]->first_line);
+        }
+        analyse_Stmt(tree->children[4], ev);
     }
 }
 static void analyse_DefList(ast *tree, env *ev)
@@ -806,6 +832,8 @@ static void analyse_Def(ast *tree, env *ev)
 
     if (is_struct_specifier(specifier))
     {
+        check_create_struct_specifier(specifier, ev, tree->first_line);
+
         if (!resolve_struct_specifier_dec(specifier, ev))
         {
             error_struct_nodef(tree->first_line, specifier->struct_name);
@@ -816,7 +844,19 @@ static void analyse_Def(ast *tree, env *ev)
     while (decs != NULL)
     {
         symbol *existsym = st_findonly(ev->syms, decs->sym->name);
+        symbol *existsymall = st_find(ev->syms, decs->sym->name);
         if (existsym != NULL)
+        {
+            if (ev->in_struct)
+            {
+                error_member_def(decs->lineno, decs->sym->name);
+            }
+            else
+            {
+                error_var_redef(decs->lineno, decs->sym->name);
+            }
+        }
+        else if (existsymall != NULL && existsymall->is_struct)
         {
             if (ev->in_struct)
             {
@@ -1130,7 +1170,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
                     args = args->next;
                     i++;
                 }
-                if (args != NULL)
+                if (args != NULL || i != val->sym->tp->argc)
                 {
                     error_call_type(tree->first_line);
                     haspass = false;
