@@ -65,8 +65,6 @@ typedef struct __symbol_table
     symbol_item *table;
 } symbol_table;
 
-type *new_type(TYPE_CLASS cls);
-
 type *new_type_array(type *base, int rank, int *lens);
 
 type *new_type_func(int argc, type **args, type *ret);

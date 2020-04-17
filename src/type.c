@@ -3,7 +3,10 @@
 #include "symbol.h"
 #include "assert.h"
 
-type *new_type(TYPE_CLASS cls)
+static type *unit = NULL;
+static type *metaint = NULL, *metafloat = NULL;
+
+static type *new_type(TYPE_CLASS cls)
 {
     type *result = new (type);
     result->cls = cls;
@@ -38,14 +41,31 @@ type *new_type_struct(int memc, symbol **mems)
 
 type *new_type_unit()
 {
-    return new_type(TC_UNIT);
+    if (unit == NULL)
+        unit = new_type(TC_UNIT);
+    return unit;
 }
 
 type *new_type_meta(METATYPE_type metatype)
 {
-    type *result = new_type(TC_META);
-    result->metatype = metatype;
-    return result;
+    switch (metatype)
+    {
+    case MT_INT:
+        if (metaint == NULL)
+        {
+            metaint = new_type(TC_META);
+            metaint->metatype = MT_INT;
+        }
+        return metaint;
+    case MT_FLOAT:
+        if (metafloat == NULL)
+        {
+            metafloat = new_type(TC_META);
+            metafloat->metatype = MT_FLOAT;
+        }
+        return metafloat;
+    }
+    assert(0);
 }
 
 bool type_full_eq(type *a, type *b, bool strict_arr)

@@ -30,8 +30,8 @@ jobs:
       - name: Test Syntax & Lexical
         run: |
           cd test/A
-          ./run.sh ../../Code/parser
+          ./run.sh ../../src/parser
       - name: Test Semantics
         run: |
           cd test/B
-          ./run.sh ../../Code/parser
+          ./run.sh ../../src/parser
