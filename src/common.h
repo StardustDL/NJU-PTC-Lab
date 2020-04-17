@@ -5,6 +5,8 @@
 
 typedef unsigned char bool;
 
+typedef long long ll;
+
 #define true 1
 #define false 0
 

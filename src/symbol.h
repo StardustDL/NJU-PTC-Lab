@@ -6,6 +6,8 @@
 typedef enum
 {
     TC_UNIT,
+    TC_ANY,
+    TC_NEVER,
     TC_META,
     TC_ARRAY,
     TC_FUNC,
@@ -17,6 +19,7 @@ struct __symbol_table;
 typedef struct __type
 {
     TYPE_CLASS cls;
+    ll hash;
     union {
         METATYPE_type metatype;
         struct
@@ -71,13 +74,15 @@ type *new_type_func(int argc, type **args, type *ret);
 
 type *new_type_struct(int memc, symbol **mems);
 
+type *new_type_any();
+
 type *new_type_unit();
+
+type *new_type_never();
 
 type *new_type_meta(METATYPE_type metatype);
 
 type *type_array_descending(type *t);
-
-bool type_full_eq(type *a, type *b, bool strict_arr);
 
 symbol *new_symbol(char *name, int lineno, type *tp, SYMBOL_state state);
 
