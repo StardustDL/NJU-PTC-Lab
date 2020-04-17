@@ -8,8 +8,6 @@ fi
 
 RED='\033[0;31m'
 NC='\033[0m'
-BOLD=$(tput bold)
-NORMAL=$(tput sgr0)
 
 FL1=$(head -1 $1)
 FL2=$(head -1 $2)
@@ -29,7 +27,7 @@ else ## parse failed
     ## check if your output ends with "."
     if ! [ ${FL2: -1} == '.' ]
     then
-      echo -e "${RED}${BOLD}Error: your output should end with \".\"${NC}${NORMAL}"
+      echo -e "${RED}Error: your output should end with \".\"${NC}"
       exit 1
     fi
     exit 0;

@@ -2,8 +2,6 @@
 
 RED='\033[0;31m'
 NC='\033[0m'
-BOLD=$(tput bold)
-NORMAL=$(tput sgr0)
 PYTHON='python3'
 
 cd $(dirname $0)
@@ -26,7 +24,7 @@ fi
 mkdir -p ./workdir
 
 report_error(){
-  echo -e "${RED}${BOLD}test [$(basename $fcmm)]" "$1" "${NC}${NORMAL}"
+  echo -e "${RED}test [$(basename $fcmm)]" "$1" "${NC}"
 }
 
 for fcmm in ./*.cmm; do
