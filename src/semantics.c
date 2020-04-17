@@ -391,6 +391,14 @@ static void analyse_ExtDef(ast *tree, env *ev)
     }
     else if (tree->children[1]->type == ST_FunDec)
     {
+        if (is_struct_specifier(specifier))
+        {
+            if (!resolve_struct_specifier_dec(specifier, ev))
+            {
+                error_struct_nodef(tree->first_line, specifier->struct_name);
+            }
+        }
+
         ev->declare_type = specifier->tp;
         SES_FunDec *sf = analyse_FunDec(tree->children[1], ev);
         if (tree->children[2]->type == ST_CompSt) // function definition
