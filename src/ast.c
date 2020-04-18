@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "ast.h"
+#include "object.h"
 
 ast *new_ast(int type, int first_line, int count, ...)
 {

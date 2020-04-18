@@ -3,6 +3,7 @@
 #include <assert.h>
 #include "symbol.h"
 #include "common.h"
+#include "object.h"
 
 symbol *new_symbol(char *name, int lineno, type *tp, SYMBOL_state state)
 {

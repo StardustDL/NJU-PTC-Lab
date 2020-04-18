@@ -8,6 +8,7 @@
 #include "symbol.h"
 #include "type.h"
 #include "common.h"
+#include "object.h"
 
 static void semantics_error(int type, int lineno, char *format, ...);
 static void semantics_log(int lineno, char *format, ...);

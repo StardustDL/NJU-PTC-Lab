@@ -4,6 +4,7 @@
 #include "symbol.h"
 #include "type.h"
 #include "assert.h"
+#include "object.h"
 
 static type *unit = NULL;
 static type *any = NULL;

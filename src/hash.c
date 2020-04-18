@@ -1,4 +1,5 @@
 #include "hash.h"
+#include "object.h"
 #include <assert.h>
 
 static ll MOD = 1e9 + 7;
