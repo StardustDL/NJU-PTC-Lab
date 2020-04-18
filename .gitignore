@@ -6,3 +6,4 @@ src/lex.yy.c
 src/syntax.tab.c
 src/syntax.tab.h
 src/parser
+temp

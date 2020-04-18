@@ -1254,6 +1254,19 @@ static void analyse(ast *tree)
 {
     env *ev = new (env);
     ev->syms = new_symbol_table(NULL);
+
+    {
+        type* tpRead = new_type_func(0, NULL, new_type_meta(MT_INT));
+        symbol* read = new_symbol("read", 0, tpRead, SS_DEF);
+        st_pushfront(ev->syms, read);
+    }
+    {
+        type** args = newarr(type, 1);
+        args[0] = new_type_meta(MT_INT);
+        type* tpWrite = new_type_func(1, args, new_type_unit());
+        symbol* write = new_symbol("write", 0, tpWrite, SS_DEF);
+        st_pushfront(ev->syms, write);
+    }
     analyse_Program(tree, ev);
 }
 

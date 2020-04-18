@@ -13,12 +13,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -yq bison flex
           sudo apt-get install -yq dos2unix
-          sudo apt-get install -yq python3
+          sudo apt-get install -yq python python3
+          sudo apt-get install build-essential
           dos2unix $(find -name *.sh)
           chmod +x test/compile.sh
           chmod +x test/A/check.sh
           chmod +x test/A/run.sh
           chmod +x test/B/run.sh
+          chmod +x test/C/run.sh
       - name: Build
         run: |
           cd src
@@ -34,4 +36,8 @@ jobs:
       - name: Test Semantics
         run: |
           cd test/B
+          ./run.sh ../../src/parser
+      - name: Test IR
+        run: |
+          cd test/C
           ./run.sh ../../src/parser

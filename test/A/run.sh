@@ -1,34 +1,84 @@
 #!/bin/bash
 
-if [ -z $1 ]
-then
-  echo "Usage: $0 path_to_parser_binary"
-  exit -1
-fi
+RED='\033[0;31m'
+NC='\033[0m'
 
-if ! [ -x $1 ]
+cd $(dirname $0)
+
+if ! [ -z $1 ]
 then
-  echo "Error: file \"$1\" is not executable"
-  exit -1
+  rm ./workdir/saved_binary.sh 2> /dev/null
 fi
 
 RUN=$1
+
+if [ -e ./workdir/saved_binary.sh ]
+then
+  source ./workdir/saved_binary.sh
+fi
+
 CODE=0
 
+if [ -z $RUN ]
+then
+  echo "Usage: $0 path_to_parser_binary"
+  rm ./workdir/saved_binary.sh 2> /dev/null
+  exit 0
+fi
+
+if ! [ -x $RUN ]
+then
+  echo "Error: file \"$RUN\" is not executable"
+  rm ./workdir/saved_binary.sh 2> /dev/null
+  exit 0
+fi
+
+echo "RUN=$RUN" > ./workdir/saved_binary.sh
+
 mkdir -p ./workdir
+
+report_error(){
+  echo -e "${RED}test [$(basename $fcmm)]" "$1" "${NC}"
+  CODE=-1
+}
 
 for fcmm in ./*.cmm; do
   cp $fcmm ./workdir/a.cmm
   cp ${fcmm%.cmm}.out ./workdir/a.out
 
-  $RUN ./workdir/a.cmm --syntax > ./workdir/b.out 2>&1
+  if timeout --help > /dev/null 2>&1; then #if has `timeout` command
+    timeout 2 $RUN ./workdir/a.cmm --syntax> ./workdir/b.out 2>&1
+    ec=$?
+    if [[ $ec -eq 124 ]]; then
+      report_error "Time Limit Error"
+      continue
+    elif [[ $ec -eq 0 ]]; then
+      true
+    elif [[ $ec -eq 1 ]]; then
+      true
+    else
+      report_error "Runtime Error"
+      continue
+    fi
+  else
+    $RUN ./workdir/a.cmm --syntax> ./workdir/b.out 2>&1
+    ec=$?
+    if [[ $ec -eq 0 ]]; then
+      true
+    elif [[ $ec -eq 1 ]]; then
+      true
+    else
+      report_error "Runtime Error"
+      continue
+    fi
+  fi
 
   if ./check.sh ./workdir/a.out ./workdir/b.out; then
     echo test [$(basename $fcmm)] matched
   else
-    echo -e "test [$(basename $fcmm)] mismatch"
-    diff ./workdir/a.out ./workdir/b.out --strip-trailing-cr | head -10
-    CODE=-1
+    echo -e "${RED}test [$(basename $fcmm)] mismatch${NC}"
+    diff ./workdir/a.out ./workdir/b.out | head -10
+    report_error "mismatch"
   fi
 done
 
