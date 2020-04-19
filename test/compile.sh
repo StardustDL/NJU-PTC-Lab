@@ -1,4 +1,4 @@
-for file in $(find A/*.cmm)
+for file in $(find syntax/*.cmm)
 do
     name=$(echo $file | cut -d. -f1)
     echo "Compiling $name ..."
@@ -6,7 +6,7 @@ do
     echo
 done
 
-for file in $(find B/*.cmm)
+for file in $(find semantics/*.cmm)
 do
     name=$(echo $file | cut -d. -f1)
     echo "Compiling $name ..."
@@ -14,7 +14,7 @@ do
     echo
 done
 
-for file in $(find C/*.cmm)
+for file in $(find ir/*.cmm)
 do
     name=$(echo $file | cut -d. -f1)
     echo "Compiling $name ..."

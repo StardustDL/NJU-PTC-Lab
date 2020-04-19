@@ -73,7 +73,7 @@ for fcmm in ./*.cmm; do
     fi
   fi
 
-  if ./check.sh ./workdir/a.out ./workdir/b.out; then
+  if bash -c './check.sh ./workdir/a.out ./workdir/b.out'; then
     echo test [$(basename $fcmm)] matched
   else
     echo -e "${RED}test [$(basename $fcmm)] mismatch${NC}"
