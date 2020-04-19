@@ -18,6 +18,7 @@ jobs:
           dos2unix $(find -name *.sh)
           chmod +x test/compile.sh
           chmod +x test/unit/run.sh
+          chmod +x test/syntax/check.sh
           chmod +x test/syntax/run.sh
           chmod +x test/semantics/run.sh
           chmod +x test/ir/run.sh
