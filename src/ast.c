@@ -15,7 +15,7 @@ ast *new_ast(int type, int first_line, int count, ...)
     result->is_empty = false;
     result->is_token = false;
     result->count = count;
-    result->tag = NULL;
+    result->sem = NULL;
     if (count > 0)
     {
         result->children = newarr(ast, count);
@@ -35,7 +35,7 @@ void delete_ast(ast *ast)
 
     for (int i = 0; i < ast->count; i++)
         delete_ast(ast->children[i]);
-    delete(ast);
+    delete (ast);
 }
 
 const char *get_syntax_type_name(int type)
@@ -206,10 +206,10 @@ void show_ast(ast *tree, int level)
         switch (tree->type)
         {
         case ST_ID:
-            printf(": %s", tree->t_str);
+            printf(": %s", *cast(ASTD_Id, tree->data));
             break;
         case ST_TYPE:
-            switch (tree->t_type)
+            switch (*cast(ASTD_Type, tree->data))
             {
             case MT_INT:
                 printf(": %s", "int");
@@ -220,10 +220,10 @@ void show_ast(ast *tree, int level)
             }
             break;
         case ST_INT:
-            printf(": %u", tree->t_uint);
+            printf(": %u", *cast(ASTD_Int, tree->data));
             break;
         case ST_FLOAT:
-            printf(": %.6f", tree->t_float);
+            printf(": %.6f", *cast(ASTD_Float, tree->data));
             break;
         }
     }

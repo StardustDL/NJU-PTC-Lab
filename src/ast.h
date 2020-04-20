@@ -72,6 +72,16 @@ typedef enum
     MT_FLOAT
 } METATYPE_type;
 
+typedef unsigned int ASTD_Int;
+
+typedef float ASTD_Float;
+
+typedef RELOP_type ASTD_Relop;
+
+typedef METATYPE_type ASTD_Type;
+
+typedef char ASTD_Id[64];
+
 typedef struct __ast
 {
     SYNTAX_type type;
@@ -80,13 +90,8 @@ typedef struct __ast
     int count;
     struct __ast **children;
     int first_line;
-    union {
-        unsigned int t_uint;
-        float t_float;
-        int t_type;
-        char t_str[64];
-    };
-    void *tag;
+    void *data;
+    void *sem;
 } ast;
 
 ast *new_ast(int type, int first_line, int count, ...);

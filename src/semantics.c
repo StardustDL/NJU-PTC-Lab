@@ -107,7 +107,6 @@ typedef struct
 typedef struct
 {
     type *tp;
-    int value;
 } SES_INT;
 
 typedef struct
@@ -117,7 +116,6 @@ typedef struct
 
 typedef struct
 {
-    char *name;
     symbol *sym;
 } SES_ID;
 
@@ -276,9 +274,8 @@ static SES_INT *analyse_INT(ast *tree, env *ev)
     semantics_log(tree->first_line, "%s", "INT");
     assert(tree->type == ST_INT);
     SES_INT *tag = new (SES_INT);
-    tag->value = tree->t_uint;
     tag->tp = new_type_meta(MT_INT);
-    tree->tag = tag;
+    tree->sem = tag;
     return tag;
 }
 static SES_FLOAT *analyse_FLOAT(ast *tree, env *ev)
@@ -287,18 +284,18 @@ static SES_FLOAT *analyse_FLOAT(ast *tree, env *ev)
     assert(tree->type == ST_FLOAT);
     SES_FLOAT *tag = new (SES_FLOAT);
     tag->tp = new_type_meta(MT_FLOAT);
-    tree->tag = tag;
+    tree->sem = tag;
     return tag;
 }
 static SES_ID *analyse_ID(ast *tree, env *ev)
 {
-    semantics_log(tree->first_line, "%s (%s)", "ID", tree->t_str);
     assert(tree->type == ST_ID);
-    symbol *sym = st_find(ev->syms, tree->t_str);
+    char *name = *cast(ASTD_Id, tree->data);
+    semantics_log(tree->first_line, "%s (%s)", "ID", name);
+    symbol *sym = st_find(ev->syms, name);
     SES_ID *tag = new (SES_ID);
-    tag->name = tree->t_str;
     tag->sym = sym;
-    tree->tag = tag;
+    tree->sem = tag;
     return tag;
 }
 static SES_TYPE *analyse_TYPE(ast *tree, env *ev)
@@ -306,8 +303,8 @@ static SES_TYPE *analyse_TYPE(ast *tree, env *ev)
     semantics_log(tree->first_line, "%s", "TYPE");
     assert(tree->type == ST_TYPE);
     SES_TYPE *tag = new (SES_TYPE);
-    tag->tp = new_type_meta(tree->t_type);
-    tree->tag = tag;
+    tag->tp = new_type_meta(*cast(ASTD_Type, tree->data));
+    tree->sem = tag;
     return tag;
 }
 static void analyse_Program(ast *tree, env *ev)
@@ -464,7 +461,7 @@ static SES_VarDec *analyse_ExtDecList(ast *tree, env *ev)
     {
         first->next = analyse_ExtDecList(tree->children[2], ev);
     }
-    tree->tag = first;
+    tree->sem = first;
     return first;
 }
 static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
@@ -487,7 +484,7 @@ static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
         tag = analyse_StructSpecifier(child, ev);
     }
     assert(tag != NULL);
-    tree->tag = tag;
+    tree->sem = tag;
     return tag;
 }
 static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
@@ -534,9 +531,9 @@ static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
         type *tp = new_type_struct(memlen, syms);
         tag->tp = tp;
     }
-    tree->tag = tag;
+    tree->sem = tag;
     assert(tag != NULL);
-    return tree->tag;
+    return tree->sem;
 }
 static SES_Tag *analyse_OptTag(ast *tree, env *ev)
 {
@@ -550,16 +547,15 @@ static SES_Tag *analyse_OptTag(ast *tree, env *ev)
     if (tree->count == 0)
     {
         struct_id++;
-        sprintf(tree->t_str, "@STRUCT%d", struct_id);
-        tag->name = tree->t_str;
+        char *name = *cast(ASTD_Id, tree->data);
+        sprintf(name, "@STRUCT%d", struct_id);
+        tag->name = name;
     }
     else
     {
-        SES_ID *id = analyse_ID(tree->children[0], ev);
-        // AT: id->sym not null means conflict struct name
-        tag->name = id->name;
+        tag->name = *cast(ASTD_Id, tree->children[0]->data);
     }
-    tree->tag = tag;
+    tree->sem = tag;
     return tag;
 }
 static SES_Tag *analyse_Tag(ast *tree, env *ev)
@@ -569,10 +565,8 @@ static SES_Tag *analyse_Tag(ast *tree, env *ev)
     //     ;
     assert(tree->type == ST_Tag);
     SES_Tag *tag = new (SES_Tag);
-    SES_ID *id = analyse_ID(tree->children[0], ev);
-    // AT: id->sym not null means conflict struct name
-    tag->name = id->name;
-    tree->tag = tag;
+    tag->name = *cast(ASTD_Id, tree->children[0]->data);
+    tree->sem = tag;
     return tag;
 }
 static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
@@ -586,18 +580,18 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
     bool invardec = ev->in_vardec;
     if (tree->count == 1)
     {
-        SES_ID *id = analyse_ID(tree->children[0], ev);
+        char *name = *cast(ASTD_Id, tree->children[0]->data);
         SES_VarDec *tag = new (SES_VarDec);
         if (invardec)
         {
-            tag->sym = new_symbol(id->name, tree->first_line, NULL, SS_DEC);
+            tag->sym = new_symbol(name, tree->first_line, NULL, SS_DEC);
         }
         else
         {
-            tag->sym = new_symbol(id->name, tree->first_line, ev->declare_type, SS_DEC);
+            tag->sym = new_symbol(name, tree->first_line, ev->declare_type, SS_DEC);
         }
         tag->lineno = tree->first_line;
-        tree->tag = tag;
+        tree->sem = tag;
         return tag;
     }
     else
@@ -607,13 +601,13 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
         SES_INT *len = analyse_INT(tree->children[2], ev);
         ev->in_vardec = invardec;
         int_list *li = new (int_list);
-        li->data = len->value;
+        li->data = *cast(ASTD_Int, tree->children[2]->data);
         li->next = subvar->lens;
         subvar->lens = li;
         subvar->lineno = tree->first_line;
         if (invardec)
         {
-            tree->tag = subvar;
+            tree->sem = subvar;
             return subvar;
         }
         else
@@ -649,7 +643,7 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
     //     ;
     assert(tree->type == ST_FunDec);
 
-    SES_ID *id = analyse_ID(tree->children[0], ev);
+    char *name = *cast(ASTD_Id, tree->children[0]);
     SES_FunDec *tag = new (SES_FunDec);
     tag->lineno = tree->first_line;
 
@@ -659,7 +653,7 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
 
     if (tree->count == 3)
     {
-        symbol *sym = new_symbol(id->name, tree->first_line, new_type_func(0, NULL, ev->declare_type), SS_DEC);
+        symbol *sym = new_symbol(name, tree->first_line, new_type_func(0, NULL, ev->declare_type), SS_DEC);
         tag->sym = sym;
     }
     else
@@ -682,12 +676,12 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
             cur = cur->next;
         }
         type *ftp = new_type_func(len, args, ev->declare_type);
-        symbol *sym = new_symbol(id->name, tree->first_line, ftp, SS_DEC);
+        symbol *sym = new_symbol(name, tree->first_line, ftp, SS_DEC);
         tag->sym = sym;
     }
 
     st_pushfront(funcev->syms, tag->sym);
-    tree->tag = tag;
+    tree->sem = tag;
     return tag;
 }
 static SES_VarDec *analyse_VarList(ast *tree, env *ev)
@@ -703,7 +697,7 @@ static SES_VarDec *analyse_VarList(ast *tree, env *ev)
     {
         first->next = analyse_VarList(tree->children[2], ev);
     }
-    tree->tag = first;
+    tree->sem = first;
     return first;
 }
 static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
@@ -743,7 +737,7 @@ static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
 
     ev->declare_type = NULL;
 
-    tree->tag = vardec;
+    tree->sem = vardec;
 
     return vardec;
 }
@@ -923,7 +917,7 @@ static SES_VarDec *analyse_DecList(ast *tree, env *ev)
     {
         first->next = analyse_DecList(tree->children[2], ev);
     }
-    tree->tag = first;
+    tree->sem = first;
     return first;
 }
 static SES_VarDec *analyse_Dec(ast *tree, env *ev)
@@ -947,7 +941,7 @@ static SES_VarDec *analyse_Dec(ast *tree, env *ev)
             error_assign_type(tree->first_line);
         }
     }
-    tree->tag = var;
+    tree->sem = var;
     return var;
 }
 static SES_Exp *analyse_Exp(ast *tree, env *ev)
@@ -993,7 +987,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             SES_ID *val = analyse_ID(tree->children[0], ev);
             if (val->sym == NULL)
             {
-                error_var_nodef(tree->first_line, val->name);
+                error_var_nodef(tree->first_line, *cast(ASTD_Id, tree->children[0]));
                 tag->tp = new_type_never();
             }
             else
@@ -1042,9 +1036,10 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         else if (tree->children[0]->type == ST_ID) // ID LP RP
         {
             SES_ID *val = analyse_ID(tree->children[0], ev);
+            char *name = *cast(ASTD_Id, tree->children[0]->data);
             if (val->sym == NULL)
             {
-                error_func_nodef(tree->first_line, val->name);
+                error_func_nodef(tree->first_line, name);
                 tag->tp = new_type_never();
             }
             else if (!type_can_call(val->sym->tp))
@@ -1065,7 +1060,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         else if (tree->children[1]->type == ST_DOT) // Exp DOT ID
         {
             SES_Exp *exp = analyse_Exp(tree->children[0], ev);
-            SES_ID *id = analyse_ID(tree->children[2], ev);
+            char *name = *cast(ASTD_Id, tree->children[2]->data);
             if (exp->sym != NULL && exp->sym->is_struct)
             {
                 error_member(tree->children[1]->first_line);
@@ -1077,10 +1072,10 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             }
             else
             {
-                symbol *member = type_can_membername(exp->tp, id->name);
+                symbol *member = type_can_membername(exp->tp, name);
                 if (member == NULL)
                 {
-                    error_member_nodef(tree->children[2]->first_line, id->name);
+                    error_member_nodef(tree->children[2]->first_line, name);
                     tag->tp = new_type_never();
                 }
                 else
@@ -1168,11 +1163,12 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         if (tree->children[0]->type == ST_ID) // ID LP Args RP
         {
             SES_ID *val = analyse_ID(tree->children[0], ev);
+            char *name = *cast(ASTD_Id, tree->children[0]->data);
             SES_Exp *args = analyse_Args(tree->children[2], ev);
             tag = new (SES_Exp);
             if (val->sym == NULL)
             {
-                error_func_nodef(tree->first_line, val->name);
+                error_func_nodef(tree->first_line, name);
                 tag->tp = new_type_never();
             }
             else if (!type_can_call(val->sym->tp))
@@ -1231,7 +1227,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         }
     }
     tag->lineno = tree->first_line;
-    tree->tag = tag;
+    tree->sem = tag;
     return tag;
 }
 static SES_Exp *analyse_Args(ast *tree, env *ev)
@@ -1247,7 +1243,7 @@ static SES_Exp *analyse_Args(ast *tree, env *ev)
     {
         first->next = analyse_Args(tree->children[2], ev);
     }
-    tree->tag = first;
+    tree->sem = first;
     return first;
 }
 
@@ -1257,15 +1253,15 @@ static void analyse(ast *tree)
     ev->syms = new_symbol_table(NULL);
 
     {
-        type* tpRead = new_type_func(0, NULL, new_type_meta(MT_INT));
-        symbol* read = new_symbol("read", 0, tpRead, SS_DEF);
+        type *tpRead = new_type_func(0, NULL, new_type_meta(MT_INT));
+        symbol *read = new_symbol("read", 0, tpRead, SS_DEF);
         st_pushfront(ev->syms, read);
     }
     {
-        type** args = newarr(type, 1);
+        type **args = newarr(type, 1);
         args[0] = new_type_meta(MT_INT);
-        type* tpWrite = new_type_func(1, args, new_type_unit());
-        symbol* write = new_symbol("write", 0, tpWrite, SS_DEF);
+        type *tpWrite = new_type_func(1, args, new_type_unit());
+        symbol *write = new_symbol("write", 0, tpWrite, SS_DEF);
         st_pushfront(ev->syms, write);
     }
     analyse_Program(tree, ev);
