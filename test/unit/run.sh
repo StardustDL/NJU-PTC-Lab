@@ -39,8 +39,9 @@ echo "RUN=$RUN" > ./workdir/saved_binary.sh
 mkdir -p ./workdir
 
 cp $RUN/* ./workdir
-
+rm -f ./workdir/main.o
 cp ./main.c ./workdir
+cp ./Makefile ./workdir
 cp ./unittest.h ./workdir
 
 report_error(){
@@ -53,7 +54,10 @@ for fcmm in ./test_*.c; do
 
   cp $fcmm ./workdir/test.c
 
-  $CC ./workdir/test.c -o ./workdir/test
+  rm -f ./workdir/test
+
+  make -C ./workdir -s
+
   ec=$?
   if [[ $ec -eq 0 ]]; then
     true

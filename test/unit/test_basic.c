@@ -1,5 +1,4 @@
 #include "unittest.h"
-#include "main.c"
 
 testdef(basic)
 {
