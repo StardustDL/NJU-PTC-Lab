@@ -547,7 +547,7 @@ static SES_Tag *analyse_OptTag(ast *tree, env *ev)
     if (tree->count == 0)
     {
         struct_id++;
-        char *name = *cast(ASTD_Id, tree->data);
+        char *name = *cast(ASTD_Id, tree->children[0]->data);
         sprintf(name, "@STRUCT%d", struct_id);
         tag->name = name;
     }
@@ -643,7 +643,7 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
     //     ;
     assert(tree->type == ST_FunDec);
 
-    char *name = *cast(ASTD_Id, tree->children[0]);
+    char *name = *cast(ASTD_Id, tree->children[0]->data);
     SES_FunDec *tag = new (SES_FunDec);
     tag->lineno = tree->first_line;
 
@@ -987,7 +987,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             SES_ID *val = analyse_ID(tree->children[0], ev);
             if (val->sym == NULL)
             {
-                error_var_nodef(tree->first_line, *cast(ASTD_Id, tree->children[0]));
+                error_var_nodef(tree->first_line, *cast(ASTD_Id, tree->children[0]->data));
                 tag->tp = new_type_never();
             }
             else
