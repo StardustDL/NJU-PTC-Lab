@@ -1276,7 +1276,7 @@ static bool enable_semantics_error = true;
 static bool semantics_is_passed = false;
 static char semantics_buffer[1024];
 
-void semantics_error(int type, int lineno, char *format, ...)
+static void semantics_error(int type, int lineno, char *format, ...)
 {
     semantics_is_passed = 0;
 
@@ -1295,7 +1295,7 @@ void semantics_error(int type, int lineno, char *format, ...)
     fprintf(stderr, "%s.\n", semantics_buffer);
 }
 
-void semantics_log(int lineno, char *format, ...)
+static void semantics_log(int lineno, char *format, ...)
 {
     if (!enable_semantics_log)
         return;
@@ -1324,7 +1324,7 @@ void semantics_set_error(bool enable)
 
 void semantics_prepare()
 {
-    semantics_is_passed = 1;
+    semantics_is_passed = true;
 }
 
 bool semantics_work(ast *tree)

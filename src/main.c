@@ -5,6 +5,7 @@
 #include "lexical.h"
 #include "syntax.h"
 #include "semantics.h"
+#include "ir.h"
 
 static FILE *get_input_file(int argc, char **argv)
 {
@@ -108,6 +109,10 @@ static bool try_ir(ast *tree, FILE *outfile)
     fputs("RETURN t8\n", outfile);
     fclose(outfile);
     return true;
+
+    ir_prepare();
+    bool result = ir_work(tree);
+    return result;
 }
 
 int main(int argc, char **argv)
@@ -115,22 +120,16 @@ int main(int argc, char **argv)
     FILE *input = get_input_file(argc, argv);
 
     if (input == NULL)
-    {
         return 1;
-    }
 
     char *option = get_option(argc, argv);
 
     if (strcmp(option, "--lexcial") == 0)
-    {
         return try_lexical(input) ? 0 : 1;
-    }
 
     ast *tree = try_syntax(input);
     if (tree == NULL)
-    {
         return 1;
-    }
 
     if (strcmp(option, "--syntax") == 0)
     {
@@ -139,24 +138,18 @@ int main(int argc, char **argv)
     }
 
     if (!try_semantics(tree))
-    {
         return 1;
-    }
 
     if (strcmp(option, "--semantics") == 0)
-    {
         return 0;
-    }
 
     FILE *irfile = get_ir_file(argc, argv);
-    if (try_ir(tree, irfile))
-    {
-        return 0;
-    }
-    else
-    {
+
+    if (!try_ir(tree, irfile))
         return 1;
-    }
+
+    if (strcmp(option, "--ir") == 0)
+        return 0;
 
     return 0;
 }

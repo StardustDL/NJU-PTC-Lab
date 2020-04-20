@@ -27,16 +27,9 @@ then
   exit 0
 fi
 
-if ! [ -x $RUN ]
-then
-  echo "Error: file \"$RUN\" is not executable"
-  rm ./workdir/saved_binary.sh 2> /dev/null
-  exit 0
-fi
+mkdir -p ./workdir
 
 echo "RUN=$RUN" > ./workdir/saved_binary.sh
-
-mkdir -p ./workdir
 
 cp $RUN/* ./workdir
 rm -f ./workdir/main.o

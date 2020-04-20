@@ -3,17 +3,22 @@
 
 #include "common.h"
 
-#define new(type) (type*)newobj(sizeof(type), #type)
-#define newarr(type, count) (type**)newobjs(sizeof(type*), count, #type "*")
-#define instanceof(type, ptr) instanceofobj(ptr, #type)
-#define cast(type, ptr) (type*)castobj(ptr, #type)
+#define new(type) ((type*)newobj(sizeof(type), #type))
+#define newarr(type, count) ((type**)newobjs(sizeof(type*), count, #type "*"))
+#define delete(ptr) (deleteobj(ptr))
+#define instanceof(type, ptr) (instanceofobj(ptr, #type))
+#define cast(type, ptr) ((type*)castobj(ptr, #type))
 
-void *newobj(size_t size, const char *typename);
+void *newobj(size_t size, const char *type_name);
 
-void *newobjs(size_t size, int count, const char *typename);
+void *newobjs(size_t size, int count, const char *type_name);
 
-bool instanceofobj(void *ptr, const char *typename);
+void deleteobj(void *ptr);
 
-void *castobj(void *ptr, const char *typename);
+bool instanceofobj(void *ptr, const char *type_name);
+
+void *castobj(void *ptr, const char *type_name);
+
+const char* typename(void *ptr);
 
 #endif

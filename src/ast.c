@@ -28,14 +28,14 @@ ast *new_ast(int type, int first_line, int count, ...)
         result->children = NULL;
     return result;
 }
-void free_ast(ast *ast)
+void delete_ast(ast *ast)
 {
     if (ast == NULL)
         return;
 
     for (int i = 0; i < ast->count; i++)
-        free_ast(ast->children[i]);
-    free(ast);
+        delete_ast(ast->children[i]);
+    delete(ast);
 }
 
 const char *get_syntax_type_name(int type)

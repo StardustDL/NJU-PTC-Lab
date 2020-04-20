@@ -91,7 +91,7 @@ typedef struct __ast
 
 ast *new_ast(int type, int first_line, int count, ...);
 
-void free_ast(ast *ast);
+void delete_ast(ast *ast);
 
 void show_ast(ast *ast, int level);
 

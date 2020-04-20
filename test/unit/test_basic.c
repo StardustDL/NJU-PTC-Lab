@@ -1,4 +1,5 @@
 #include "unittest.h"
+#include "type.h"
 
 testdef(basic)
 {

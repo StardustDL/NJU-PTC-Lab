@@ -8,10 +8,10 @@ static const int OBJMAGIC = 21687894;
 typedef struct
 {
     int magic;
-    const char *typename;
+    const char *type_name;
 } objheader;
 
-void *newobj(size_t size, const char *typename)
+void *newobj(size_t size, const char *type_name)
 {
     size_t soh = sizeof(objheader);
     char *result = malloc(soh + size);
@@ -19,21 +19,35 @@ void *newobj(size_t size, const char *typename)
 
     objheader *oh = (objheader *)result;
     oh->magic = OBJMAGIC;
-    oh->typename = typename;
+    oh->type_name = type_name;
     return (void *)(result + soh);
 }
 
-void *newobjs(size_t size, int count, const char *typename)
+void *newobjs(size_t size, int count, const char *type_name)
 {
-    return newobj(size * count, typename);
+    return newobj(size * count, type_name);
 }
 
-bool instanceofobj(void *ptr, const char *typename)
+void deleteobj(void *ptr)
 {
     size_t soh = sizeof(objheader);
     objheader *oh = (objheader *)(((char *)ptr) - soh);
     assert(oh->magic == OBJMAGIC);
-    if (oh->typename == typename || strcmp(oh->typename, typename) == 0)
+    free((void *)oh);
+}
+
+const char *typename(void *ptr)
+{
+    size_t soh = sizeof(objheader);
+    objheader *oh = (objheader *)(((char *)ptr) - soh);
+    assert(oh->magic == OBJMAGIC);
+    return oh->type_name;
+}
+
+bool instanceofobj(void *ptr, const char *type_name)
+{
+    const char *name = typename(ptr);
+    if (name == type_name || strcmp(name, type_name) == 0)
     {
         return true;
     }
@@ -43,8 +57,8 @@ bool instanceofobj(void *ptr, const char *typename)
     }
 }
 
-void *castobj(void *ptr, const char *typename)
+void *castobj(void *ptr, const char *type_name)
 {
-    assert(instanceofobj(ptr, typename));
+    assert(instanceofobj(ptr, type_name));
     return ptr;
 }

@@ -33,9 +33,9 @@ then
   exit 0
 fi
 
-echo "RUN=$RUN" > ./workdir/saved_binary.sh
-
 mkdir -p ./workdir
+
+echo "RUN=$RUN" > ./workdir/saved_binary.sh
 
 report_error(){
   echo -e "${RED}test [$(basename $fcmm)]" "$1" "${NC}"
