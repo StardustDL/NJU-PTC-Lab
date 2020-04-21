@@ -85,39 +85,86 @@ void delete_syntax_tree(syntax_tree *tree);
 
 void show_syntax_tree(syntax_tree *tree);
 
-#define __ast_base      \
-    symbol_table *syms; \
-    int count;          \
-    void **children
+typedef enum
+{
+    OP_Assign,
+    OP_And,
+    OP_Or,
+    OP_PLUS,
+    OP_MINUS,
+    OP_STAR,
+    OP_DIV,
+    OP_NEG,
+    OP_NOT,
+} op_type;
 
 typedef struct
 {
-    __ast_base;
+    int count;
+    void **children;
 } ast;
 
 typedef struct
 {
     type *tp;
-    __ast_base;
-} ast_exp;
+    union {
+        unsigned int vint;
+        float vfloat;
+    };
+} ast_exp_const;
 
 typedef struct
 {
-    ast_exp *cond;
-    __ast_base;
+    symbol* sym;
+} ast_exp_id;
+
+typedef struct
+{
+    op_type type;
+    void *left;
+    void *right;
+    type *tp;
+} ast_exp_bop;
+
+typedef struct
+{
+    symbol* sym;
+    void** args;
+} ast_exp_call;
+
+typedef struct
+{
+    symbol* sym;
+    int offset;
+} ast_exp_offset;
+
+typedef struct
+{
+    void *exp;
+} ast_return;
+
+typedef struct
+{
+    void *cond;
+    void *body;
 } ast_if;
 
 typedef struct
 {
-    ast_exp *cond;
-    __ast_base;
+    void *cond;
+    void *body;
 } ast_while;
 
 typedef struct
 {
-    symbol *var;
-    ast_exp *init;
-    __ast_base;
-} ast_def;
+    symbol *sym;
+    void *init;
+} ast_var;
+
+typedef struct
+{
+    symbol *sym;
+    void* body;
+} ast_func;
 
 #endif

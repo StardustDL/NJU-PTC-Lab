@@ -5,7 +5,7 @@
 
 void semantics_prepare();
 
-bool semantics_work(syntax_tree *tree);
+bool semantics_analyse(syntax_tree *tree);
 
 bool semantics_has_passed();
 

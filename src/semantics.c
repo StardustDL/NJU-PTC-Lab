@@ -1104,26 +1104,6 @@ static SES_Exp *analyse_Args(syntax_tree *tree, env *ev)
     return first;
 }
 
-static void analyse(syntax_tree *tree)
-{
-    env *ev = new (env);
-    ev->syms = new_symbol_table(NULL);
-
-    {
-        type *tpRead = new_type_func(0, NULL, new_type_meta(MT_INT));
-        symbol *read = new_symbol("read", 0, tpRead, SS_DEF);
-        st_add(ev->syms, read);
-    }
-    {
-        type **args = newarr(type, 1);
-        args[0] = new_type_meta(MT_INT);
-        type *tpWrite = new_type_func(1, args, new_type_unit());
-        symbol *write = new_symbol("write", 0, tpWrite, SS_DEF);
-        st_add(ev->syms, write);
-    }
-    analyse_Program(tree, ev);
-}
-
 static bool semantics_is_passed = false;
 static char semantics_buffer[1024];
 
@@ -1164,9 +1144,25 @@ void semantics_prepare()
     semantics_is_passed = true;
 }
 
-bool semantics_work(syntax_tree *tree)
+bool semantics_analyse(syntax_tree *tree)
 {
-    analyse(tree);
+    env *ev = new (env);
+    ev->syms = new_symbol_table(NULL);
+
+    {
+        type *tpRead = new_type_func(0, NULL, new_type_meta(MT_INT));
+        symbol *read = new_symbol("read", 0, tpRead, SS_DEF);
+        st_add(ev->syms, read);
+    }
+    {
+        type **args = newarr(type, 1);
+        args[0] = new_type_meta(MT_INT);
+        type *tpWrite = new_type_func(1, args, new_type_unit());
+        symbol *write = new_symbol("write", 0, tpWrite, SS_DEF);
+        st_add(ev->syms, write);
+    }
+    analyse_Program(tree, ev);
+    
     return semantics_has_passed();
 }
 

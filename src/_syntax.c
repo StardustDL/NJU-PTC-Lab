@@ -119,7 +119,7 @@ bool syntax_has_passed()
     return syntax_is_passed && lexical_has_passed();
 }
 
-syntax_tree *syntax_work()
+syntax_tree *syntax_parse()
 {
     yyparse();
     if (syntax_has_passed())

@@ -5,7 +5,9 @@
 
 void ir_prepare();
 
-bool ir_work(syntax_tree *tree);
+ast* ir_translate(syntax_tree *tree);
+
+void ir_linearise(ast* tree, FILE* file);
 
 bool ir_has_passed();
 

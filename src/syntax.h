@@ -5,7 +5,7 @@
 
 void syntax_prepare();
 
-syntax_tree *syntax_work();
+syntax_tree *syntax_parse();
 
 bool syntax_has_passed();
 

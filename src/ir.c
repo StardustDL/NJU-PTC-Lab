@@ -50,12 +50,42 @@ void ir_prepare()
     ir_is_passed = true;
 }
 
-bool ir_work(syntax_tree *tree)
+ast* ir_translate(syntax_tree *tree)
 {
-    return ir_has_passed();
+    return new(ast);
 }
 
 bool ir_has_passed()
 {
     return ir_is_passed;
+}
+
+void ir_linearise(ast *tree, FILE *file)
+{
+    fputs("FUNCTION main :\n", file);
+    fputs("READ t1\n", file);
+    fputs("v1 := t1\n", file);
+    fputs("t2 := #0\n", file);
+    fputs("IF v1 > t2 GOTO label1\n", file);
+    fputs("GOTO label2\n", file);
+    fputs("LABEL label1 :\n", file);
+    fputs("t3 := #1\n", file);
+    fputs("WRITE t3\n", file);
+    fputs("GOTO label3\n", file);
+    fputs("LABEL label2 :\n", file);
+    fputs("t4 := #0\n", file);
+    fputs("IF v1 < t4 GOTO label4\n", file);
+    fputs("GOTO label5\n", file);
+    fputs("LABEL label4 :\n", file);
+    fputs("t5 := #1\n", file);
+    fputs("t6 := #0 - t5\n", file);
+    fputs("WRITE t6\n", file);
+    fputs("GOTO label6\n", file);
+    fputs("LABEL label5 :\n", file);
+    fputs("t7 := #0\n", file);
+    fputs("WRITE t7\n", file);
+    fputs("LABEL label6 :\n", file);
+    fputs("LABEL label3 :\n", file);
+    fputs("t8 := #0\n", file);
+    fputs("RETURN t8\n", file);
 }

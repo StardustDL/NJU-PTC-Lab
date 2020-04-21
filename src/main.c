@@ -59,7 +59,6 @@ static bool try_lexical(FILE *input)
 {
     lexical_prepare(input);
     bool result = lexical_test();
-    fclose(input);
     return result;
 }
 
@@ -67,52 +66,22 @@ static syntax_tree *try_syntax(FILE *input)
 {
     lexical_prepare(input);
     syntax_prepare();
-    syntax_tree *result = syntax_work();
-    fclose(input);
+    syntax_tree *result = syntax_parse();
     return result;
 }
 
 static bool try_semantics(syntax_tree *tree)
 {
     semantics_prepare();
-    bool result = semantics_work(tree);
+    bool result = semantics_analyse(tree);
     return result;
 }
 
-static bool try_ir(syntax_tree *tree, FILE *outfile)
+static ast *try_ir(syntax_tree *tree)
 {
-    fputs("FUNCTION main :\n", outfile);
-    fputs("READ t1\n", outfile);
-    fputs("v1 := t1\n", outfile);
-    fputs("t2 := #0\n", outfile);
-    fputs("IF v1 > t2 GOTO label1\n", outfile);
-    fputs("GOTO label2\n", outfile);
-    fputs("LABEL label1 :\n", outfile);
-    fputs("t3 := #1\n", outfile);
-    fputs("WRITE t3\n", outfile);
-    fputs("GOTO label3\n", outfile);
-    fputs("LABEL label2 :\n", outfile);
-    fputs("t4 := #0\n", outfile);
-    fputs("IF v1 < t4 GOTO label4\n", outfile);
-    fputs("GOTO label5\n", outfile);
-    fputs("LABEL label4 :\n", outfile);
-    fputs("t5 := #1\n", outfile);
-    fputs("t6 := #0 - t5\n", outfile);
-    fputs("WRITE t6\n", outfile);
-    fputs("GOTO label6\n", outfile);
-    fputs("LABEL label5 :\n", outfile);
-    fputs("t7 := #0\n", outfile);
-    fputs("WRITE t7\n", outfile);
-    fputs("LABEL label6 :\n", outfile);
-    fputs("LABEL label3 :\n", outfile);
-    fputs("t8 := #0\n", outfile);
-    fputs("RETURN t8\n", outfile);
-    fclose(outfile);
-    return true;
-
     ir_prepare();
-    bool result = ir_work(tree);
-    return result;
+    ast *at = ir_translate(tree);
+    return at;
 }
 
 int main(int argc, char **argv)
@@ -125,9 +94,14 @@ int main(int argc, char **argv)
     char *option = get_option(argc, argv);
 
     if (strcmp(option, "--lexcial") == 0)
-        return try_lexical(input) ? 0 : 1;
+    {
+        int exitcode = try_lexical(input) ? 0 : 1;
+        fclose(input);
+        return exitcode;
+    }
 
     syntax_tree *tree = try_syntax(input);
+    fclose(input);
     if (tree == NULL)
         return 1;
 
@@ -143,10 +117,14 @@ int main(int argc, char **argv)
     if (strcmp(option, "--semantics") == 0)
         return 0;
 
-    FILE *irfile = get_ir_file(argc, argv);
+    ast *at = try_ir(tree);
 
-    if (!try_ir(tree, irfile))
+    if (at == NULL)
         return 1;
+
+    FILE *irfile = get_ir_file(argc, argv);
+    ir_linearise(at, irfile);
+    fclose(irfile);
 
     if (strcmp(option, "--ir") == 0)
         return 0;
