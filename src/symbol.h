@@ -11,7 +11,8 @@ typedef enum
     TC_META,
     TC_ARRAY,
     TC_FUNC,
-    TC_STRUCT
+    TC_STRUCT,
+    TC_TYPE
 } TYPE_CLASS;
 
 struct __symbol_table;
@@ -38,6 +39,10 @@ typedef struct __type
         {
             int memc;
             struct __symbol **mems;
+        };
+        struct
+        {
+            struct __type *tp;
         };
     };
 } type;
@@ -68,22 +73,6 @@ typedef struct __symbol_table
     struct __symbol_table *parent;
     symbol_item *table;
 } symbol_table;
-
-type *new_type_array(type *base, int rank, int *lens);
-
-type *new_type_func(int argc, type **args, type *ret);
-
-type *new_type_struct(int memc, symbol **mems);
-
-type *new_type_any();
-
-type *new_type_unit();
-
-type *new_type_never();
-
-type *new_type_meta(METATYPE_type metatype);
-
-type *type_array_descending(type *t);
 
 symbol *new_symbol(char *name, int lineno, type *tp, SYMBOL_state state);
 

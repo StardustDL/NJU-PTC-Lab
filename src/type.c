@@ -45,6 +45,13 @@ type *new_type_struct(int memc, symbol **mems)
     return result;
 }
 
+type *new_type_type(type *tp)
+{
+    type *result = new_type(TC_TYPE);
+    result->tp = tp;
+    return result;
+}
+
 type *new_type_unit()
 {
     if (unit == NULL)
@@ -124,6 +131,10 @@ static void _show_type(type *a, int level)
             _show_type(a->mems[i]->tp, level + 1);
         }
         break;
+    case TC_TYPE:
+        printf("Type\n");
+        _show_type(a->tp, level + 1);
+        break;
     default:
         panic("Unexpect type class %d", a->cls);
     }
@@ -202,6 +213,11 @@ type *type_array_descending(type *t)
         AssertEq(t->rank, 1);
         return t->base;
     }
+}
+
+bool type_is_type(type *a)
+{
+    return a->cls == TC_TYPE;
 }
 
 bool type_can_call(type *a)

@@ -1,5 +1,6 @@
 #include "unittest.h"
 #include "symbol.h"
+#include "type.h"
 
 testdef(table)
 {
