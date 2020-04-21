@@ -2,6 +2,7 @@
 #define __SYMBOL_H__
 
 #include "ast.h"
+#include "list.h"
 
 typedef enum
 {
@@ -62,16 +63,10 @@ typedef struct __symbol
     SYMBOL_state state;
 } symbol;
 
-typedef struct __symbol_item
-{
-    symbol *sym;
-    struct __symbol_item *next;
-} symbol_item;
-
 typedef struct __symbol_table
 {
     struct __symbol_table *parent;
-    symbol_item *table;
+    list *table;
 } symbol_table;
 
 symbol *new_symbol(char *name, int lineno, type *tp, SYMBOL_state state);
@@ -88,6 +83,6 @@ symbol** st_to_arr(symbol_table *table);
 
 symbol** st_revto_arr(symbol_table *table);
 
-void st_pushfront(symbol_table *table, symbol *sym);
+void st_add(symbol_table *table, symbol *sym);
 
 #endif

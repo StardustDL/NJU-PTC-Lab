@@ -25,11 +25,12 @@ symbol_table *new_symbol_table(symbol_table *parent)
 
 symbol *st_findonly(symbol_table *table, char *name)
 {
-    symbol_item *cur = table->table;
+    list *cur = table->table;
     while (cur != NULL)
     {
-        if (strcmp(cur->sym->name, name) == 0)
-            return cur->sym;
+        symbol *sym = cast(symbol, cur->obj);
+        if (strcmp(sym->name, name) == 0)
+            return sym;
         cur = cur->next;
     }
     return NULL;
@@ -48,21 +49,18 @@ symbol *st_find(symbol_table *table, char *name)
     return NULL;
 }
 
-void st_pushfront(symbol_table *table, symbol *sym)
+void st_add(symbol_table *table, symbol *sym)
 {
     AssertIsNull(st_findonly(table, sym->name));
 
     // printf("st->push %s\n", sym->name);
 
-    symbol_item *si = new (symbol_item);
-    si->sym = sym;
-    si->next = table->table;
-    table->table = si;
+    table->table = list_pushfront(table->table, sym);
 }
 
 int st_len(symbol_table *table)
 {
-    symbol_item *cur = table->table;
+    list *cur = table->table;
     int ans = 0;
     while (cur != NULL)
     {
@@ -76,11 +74,11 @@ symbol **st_to_arr(symbol_table *table)
 {
     int len = st_len(table);
     symbol **result = newarr(symbol, len);
-    symbol_item *cur = table->table;
+    list *cur = table->table;
     int i = 0;
     while (cur != NULL)
     {
-        result[i] = cur->sym;
+        result[i] = cast(symbol, cur->obj);
         cur = cur->next;
         i++;
     }
@@ -91,11 +89,11 @@ symbol **st_revto_arr(symbol_table *table)
 {
     int len = st_len(table);
     symbol **result = newarr(symbol, len);
-    symbol_item *cur = table->table;
+    list *cur = table->table;
     int i = 0;
     while (cur != NULL)
     {
-        result[len - 1 - i] = cur->sym;
+        result[len - 1 - i] = cast(symbol, cur->obj);
         cur = cur->next;
         i++;
     }

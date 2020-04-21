@@ -75,18 +75,12 @@ typedef struct __SES_Exp
     struct __SES_Exp *next;
 } SES_Exp;
 
-typedef struct __int_list
-{
-    int data;
-    struct __int_list *next;
-} int_list;
-
 typedef struct __SES_VarDec
 {
     symbol *sym;
     bool hasinit;
     int lineno;
-    int_list *lens;
+    list *lens;
     struct __SES_VarDec *next;
 } SES_VarDec;
 
@@ -154,12 +148,12 @@ static void check_create_struct_specifier(SES_Specifier *specifier, env *ev, int
     else if (specifier->tp == NULL) // struct dec
     {
         symbol *sym = new_symbol(specifier->struct_name, lineno, new_type_type(new_type_struct(0, NULL)), SS_DEC);
-        st_pushfront(global, sym);
+        st_add(global, sym);
     }
     else
     {
         symbol *sym = new_symbol(specifier->struct_name, lineno, specifier->tp, SS_DEF);
-        st_pushfront(global, sym);
+        st_add(global, sym);
     }
 }
 
@@ -208,10 +202,10 @@ static void analyse_Program(ast *tree, env *ev)
     AssertEq(tree->type, ST_Program);
     analyse_ExtDefList(tree->children[0], ev);
 
-    symbol_item *cur = ev->syms->table;
+    list *cur = ev->syms->table;
     while (cur != NULL)
     {
-        symbol *sym = cur->sym;
+        symbol *sym = cast(symbol, cur->obj);
         if (sym->tp->cls == TC_FUNC && sym->state == SS_DEC)
         {
             error_func_decnodef(sym->lineno, sym->name);
@@ -279,7 +273,7 @@ static void analyse_ExtDef(ast *tree, env *ev)
             }
             else
             {
-                st_pushfront(ev->syms, decs->sym);
+                st_add(ev->syms, decs->sym);
             }
             decs = decs->next;
         }
@@ -336,7 +330,7 @@ static void analyse_ExtDef(ast *tree, env *ev)
         }
         else
         {
-            st_pushfront(ev->syms, sf->sym);
+            st_add(ev->syms, sf->sym);
         }
     }
     break;
@@ -499,10 +493,7 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
         ev->in_vardec = true;
         SES_VarDec *subvar = analyse_VarDec(tree->children[0], ev);
         ev->in_vardec = invardec;
-        int_list *li = new (int_list);
-        li->data = *cast(ASTD_Int, tree->children[2]->data);
-        li->next = subvar->lens;
-        subvar->lens = li;
+        subvar->lens = list_pushfront(subvar->lens, cast(ASTD_Int, tree->children[2]->data));
         subvar->lineno = tree->first_line;
         if (invardec)
         {
@@ -512,7 +503,7 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
         else
         {
             int listlen = 0, i = 0;
-            int_list *cur = subvar->lens;
+            list *cur = subvar->lens;
             while (cur != NULL)
             {
                 listlen++;
@@ -522,7 +513,7 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
             cur = subvar->lens;
             while (cur != NULL)
             {
-                lens[listlen - 1 - i] = cur->data;
+                lens[listlen - 1 - i] = *cast(ASTD_Int, cur->obj);
                 i++;
                 cur = cur->next;
             }
@@ -579,7 +570,7 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
         tag->sym = sym;
     }
 
-    st_pushfront(funcev->syms, tag->sym);
+    st_add(funcev->syms, tag->sym);
     tree->sem = tag;
     return tag;
 }
@@ -624,7 +615,7 @@ static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
     else if (existsymall != NULL && type_is_type(existsymall->tp))
         error_var_redef(vardec->lineno, vardec->sym->name);
     else
-        st_pushfront(ev->syms, vardec->sym);
+        st_add(ev->syms, vardec->sym);
 
     ev->declare_type = NULL;
 
@@ -767,7 +758,7 @@ static void analyse_Def(ast *tree, env *ev)
         {
             if (ev->in_struct && decs->hasinit) // init in struct
                 error_member_def(decs->lineno, decs->sym->name);
-            st_pushfront(ev->syms, decs->sym);
+            st_add(ev->syms, decs->sym);
         }
         decs = decs->next;
     }
@@ -1121,14 +1112,14 @@ static void analyse(ast *tree)
     {
         type *tpRead = new_type_func(0, NULL, new_type_meta(MT_INT));
         symbol *read = new_symbol("read", 0, tpRead, SS_DEF);
-        st_pushfront(ev->syms, read);
+        st_add(ev->syms, read);
     }
     {
         type **args = newarr(type, 1);
         args[0] = new_type_meta(MT_INT);
         type *tpWrite = new_type_func(1, args, new_type_unit());
         symbol *write = new_symbol("write", 0, tpWrite, SS_DEF);
-        st_pushfront(ev->syms, write);
+        st_add(ev->syms, write);
     }
     analyse_Program(tree, ev);
 }
