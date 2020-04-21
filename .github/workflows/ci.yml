@@ -4,24 +4,18 @@ on: push
 
 jobs:
   test:
-    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        os: [ubuntu-16.04, ubuntu-18.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install toolchain
         run: |
-          sudo apt-get update
-          sudo apt-get install -yq bison flex
-          sudo apt-get install -yq dos2unix
-          sudo apt-get install -yq python python3
-          sudo apt-get install build-essential
-          dos2unix $(find -name *.sh)
-          chmod +x test/compile.sh
-          chmod +x test/unit/run.sh
-          chmod +x test/syntax/check.sh
-          chmod +x test/syntax/run.sh
-          chmod +x test/semantics/run.sh
-          chmod +x test/ir/run.sh
+          sudo apt-get install -yq bison flex dos2unix python python3
+          dos2unix $(find -name '*.sh')
+          chmod +x $(find -name '*.sh')
       - name: Build
         run: |
           cd src
