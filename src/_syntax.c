@@ -5,12 +5,12 @@
 #include <ctype.h>
 #include "syntax.h"
 #include "lexical.h"
+#include "debug.h"
 
 extern int yylineno;
 extern int yyparse();
 
 static ast *syntax_result = NULL;
-static bool enable_syntax_log = false;
 static bool syntax_is_passed = false;
 static char syntax_buffer[1024];
 
@@ -53,10 +53,7 @@ void syntax_error_atline(int lineno, char *format, ...)
 
 void syntax_log(char *format, ...)
 {
-    if (!enable_syntax_log)
-        return;
-
-    fprintf(stdout, "Syntax log at Line %d: ", yylineno);
+    #ifdef DEBUG
 
     va_list aptr;
     int ret;
@@ -65,7 +62,9 @@ void syntax_log(char *format, ...)
     vsprintf(syntax_buffer, format, aptr);
     va_end(aptr);
 
-    fprintf(stdout, "%s\n", syntax_buffer);
+    #endif
+
+    Info("Line %d: %s\n", yylineno, syntax_buffer);
 }
 
 void yyerror(const char *format, ...)
@@ -107,11 +106,6 @@ void yyerror(const char *format, ...)
 
         fprintf(stderr, "%s.\n", syntax_buffer);
     }
-}
-
-void syntax_set_log(bool enable)
-{
-    enable_syntax_log = enable;
 }
 
 void syntax_prepare()

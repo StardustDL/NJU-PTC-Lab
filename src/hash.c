@@ -1,6 +1,6 @@
 #include "hash.h"
 #include "object.h"
-#include <assert.h>
+#include "debug.h"
 
 static ll MOD = 1e9 + 7;
 
@@ -13,7 +13,7 @@ hasher *new_hasher(ll seed)
 
 void hash(hasher *core, ll value)
 {
-    assert(core != NULL);
+    AssertNotNull(core);
     ll r = (core->result * core->seed + value) % MOD;
     core->result = r;
 }

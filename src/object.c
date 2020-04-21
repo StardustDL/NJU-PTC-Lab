@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "debug.h"
 #include "object.h"
 
 static const int OBJMAGIC = 21687894;
@@ -32,7 +32,7 @@ void deleteobj(void *ptr)
 {
     size_t soh = sizeof(objheader);
     objheader *oh = (objheader *)(((char *)ptr) - soh);
-    assert(oh->magic == OBJMAGIC);
+    AssertEq(oh->magic, OBJMAGIC);
     free((void *)oh);
 }
 
@@ -40,7 +40,7 @@ const char *typename(void *ptr)
 {
     size_t soh = sizeof(objheader);
     objheader *oh = (objheader *)(((char *)ptr) - soh);
-    assert(oh->magic == OBJMAGIC);
+    AssertEq(oh->magic, OBJMAGIC);
     return oh->type_name;
 }
 
@@ -57,8 +57,8 @@ bool instanceofobj(void *ptr, const char *type_name)
     }
 }
 
-void *castobj(void *ptr, const char *type_name)
+void *castobj(void *ptr, const char *type_name, const char *file, int line)
 {
-    assert(instanceofobj(ptr, type_name));
+    Assert(instanceofobj(ptr, type_name), "ptr is NOT instance of %s, at (%s, %d).", type_name, file, line);
     return ptr;
 }

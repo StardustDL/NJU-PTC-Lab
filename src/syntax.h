@@ -3,8 +3,6 @@
 
 #include "ast.h"
 
-void syntax_set_log(bool enable);
-
 void syntax_prepare();
 
 ast *syntax_work();

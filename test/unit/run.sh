@@ -22,7 +22,7 @@ CODE=0
 
 if [ -z $RUN ]
 then
-  echo "Usage: $0 path_to_parser_binary"
+  echo "Usage: $0 path_to_src"
   rm ./workdir/saved_binary.sh 2> /dev/null
   exit 0
 fi
@@ -43,7 +43,7 @@ report_error(){
 }
 
 for fcmm in ./test_*.c; do
-  echo Testing module [$(basename $fcmm)]
+  echo ----- [$(basename $fcmm)] -----
 
   cp $fcmm ./workdir/test.c
 
@@ -62,7 +62,7 @@ for fcmm in ./test_*.c; do
   fi
 
   if ./workdir/test; then
-    echo module [$(basename $fcmm)] passed
+    true
   else
     report_error "FAILED"
   fi

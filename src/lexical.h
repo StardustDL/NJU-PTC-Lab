@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include "common.h"
 
-void lexical_set_log(bool enable);
-
 void lexical_prepare(FILE *input);
 
 bool lexical_has_passed();

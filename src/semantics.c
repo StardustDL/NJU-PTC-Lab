@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdarg.h>
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include "semantics.h"
@@ -8,6 +7,7 @@
 #include "symbol.h"
 #include "type.h"
 #include "common.h"
+#include "debug.h"
 #include "object.h"
 
 static void semantics_error(int type, int lineno, char *format, ...);
@@ -19,78 +19,25 @@ static void error_var_nodef(int lineno, char *name)
 {
     semantics_error(1, lineno, "No def var: %s", name);
 }
-static void error_func_nodef(int lineno, char *name)
-{
-    semantics_error(2, lineno, "No def func: %s", name);
-}
-static void error_var_redef(int lineno, char *name)
-{
-    semantics_error(3, lineno, "Re def var: %s", name);
-}
-static void error_func_redef(int lineno, char *name)
-{
-    semantics_error(4, lineno, "Re def func: %s", name);
-}
-static void error_assign_type(int lineno)
-{
-    semantics_error(5, lineno, "assign type not match");
-}
-static void error_assign_rval(int lineno)
-{
-    semantics_error(6, lineno, "assign to rval");
-}
-static void error_op_type(int lineno)
-{
-    semantics_error(7, lineno, "op type not match");
-}
-static void error_return_type(int lineno)
-{
-    semantics_error(8, lineno, "return type not match");
-}
-static void error_call_type(int lineno)
-{
-    semantics_error(9, lineno, "func call arg type not match");
-}
-static void error_index(int lineno)
-{
-    semantics_error(10, lineno, "not indexable");
-}
-static void error_call(int lineno)
-{
-    semantics_error(11, lineno, "not callable");
-}
-static void error_index_arg(int lineno)
-{
-    semantics_error(12, lineno, "not integer in index");
-}
-static void error_member(int lineno)
-{
-    semantics_error(13, lineno, "not memberable");
-}
-static void error_member_nodef(int lineno, char *name)
-{
-    semantics_error(14, lineno, "no member: %s", name);
-}
-static void error_member_def(int lineno, char *name)
-{
-    semantics_error(15, lineno, "invalid member def");
-}
-static void error_struct_redef(int lineno, char *name)
-{
-    semantics_error(16, lineno, "struct redef");
-}
-static void error_struct_nodef(int lineno, char *name)
-{
-    semantics_error(17, lineno, "struct nodef");
-}
-static void error_func_decnodef(int lineno, char *name)
-{
-    semantics_error(18, lineno, "func dec but no def");
-}
-static void error_func_decconflict(int lineno, char *name)
-{
-    semantics_error(19, lineno, "func dec conflict");
-}
+static void error_func_nodef(int lineno, char *name) { semantics_error(2, lineno, "No def func: %s", name); }
+static void error_var_redef(int lineno, char *name) { semantics_error(3, lineno, "Re def var: %s", name); }
+static void error_func_redef(int lineno, char *name) { semantics_error(4, lineno, "Re def func: %s", name); }
+static void error_assign_type(int lineno) { semantics_error(5, lineno, "assign type not match"); }
+static void error_assign_rval(int lineno) { semantics_error(6, lineno, "assign to rval"); }
+static void error_op_type(int lineno) { semantics_error(7, lineno, "op type not match"); }
+static void error_return_type(int lineno) { semantics_error(8, lineno, "return type not match"); }
+static void error_call_type(int lineno) { semantics_error(9, lineno, "func call arg type not match"); }
+static void error_index(int lineno) { semantics_error(10, lineno, "not indexable"); }
+static void error_call(int lineno) { semantics_error(11, lineno, "not callable"); }
+static void error_index_arg(int lineno) { semantics_error(12, lineno, "not integer in index"); }
+static void error_member(int lineno) { semantics_error(13, lineno, "not memberable"); }
+static void error_member_nodef(int lineno, char *name) { semantics_error(14, lineno, "no member: %s", name); }
+static void error_member_def(int lineno, char *name) { semantics_error(15, lineno, "invalid member def"); }
+static void error_struct_redef(int lineno, char *name) { semantics_error(16, lineno, "struct redef"); }
+static void error_struct_nodef(int lineno, char *name) { semantics_error(17, lineno, "struct nodef"); }
+static void error_func_decnodef(int lineno, char *name) { semantics_error(18, lineno, "func dec but no def"); }
+static void error_func_decconflict(int lineno, char *name) { semantics_error(19, lineno, "func dec conflict"); }
+
 #pragma endregion
 
 #pragma region structs
@@ -104,25 +51,9 @@ typedef struct
     bool in_vardec;
 } env;
 
-typedef struct
-{
-    type *tp;
-} SES_INT;
+typedef symbol *SES_ID;
 
-typedef struct
-{
-    type *tp;
-} SES_FLOAT;
-
-typedef struct
-{
-    symbol *sym;
-} SES_ID;
-
-typedef struct
-{
-    type *tp;
-} SES_TYPE;
+typedef type *SES_TYPE;
 
 typedef struct
 {
@@ -137,10 +68,7 @@ typedef struct
     env *ev;
 } SES_FunDec;
 
-typedef struct
-{
-    char *name;
-} SES_Tag;
+typedef char *SES_Tag;
 
 typedef struct __SES_Exp
 {
@@ -179,7 +107,7 @@ static bool is_struct_specifier_def(SES_Specifier *sp)
 }
 static bool resolve_struct_specifier_dec(SES_Specifier *sp, env *ev)
 {
-    assert(is_struct_specifier(sp));
+    Assert(is_struct_specifier(sp), "Not a struct specifier");
     if (is_struct_specifier_dec(sp))
     {
         symbol *existsym = st_find(ev->syms, sp->struct_name);
@@ -199,7 +127,7 @@ static bool resolve_struct_specifier_dec(SES_Specifier *sp, env *ev)
 
 static void check_create_struct_specifier(SES_Specifier *specifier, env *ev, int lineno)
 {
-    assert(is_struct_specifier(specifier));
+    Assert(is_struct_specifier(specifier), "Not a struct specifier");
     symbol_table *global = ev->syms;
     while (global->parent != NULL)
         global = global->parent;
@@ -242,8 +170,6 @@ static void check_create_struct_specifier(SES_Specifier *specifier, env *ev, int
 #pragma endregion
 
 #pragma region
-static SES_INT *analyse_INT(ast *tree, env *ev);
-static SES_FLOAT *analyse_FLOAT(ast *tree, env *ev);
 static SES_ID *analyse_ID(ast *tree, env *ev);
 static SES_TYPE *analyse_TYPE(ast *tree, env *ev);
 static void analyse_Program(ast *tree, env *ev);
@@ -269,41 +195,23 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev);
 static SES_Exp *analyse_Args(ast *tree, env *ev);
 #pragma endregion
 
-static SES_INT *analyse_INT(ast *tree, env *ev)
-{
-    semantics_log(tree->first_line, "%s", "INT");
-    assert(tree->type == ST_INT);
-    SES_INT *tag = new (SES_INT);
-    tag->tp = new_type_meta(MT_INT);
-    tree->sem = tag;
-    return tag;
-}
-static SES_FLOAT *analyse_FLOAT(ast *tree, env *ev)
-{
-    semantics_log(tree->first_line, "%s", "FLOAT");
-    assert(tree->type == ST_FLOAT);
-    SES_FLOAT *tag = new (SES_FLOAT);
-    tag->tp = new_type_meta(MT_FLOAT);
-    tree->sem = tag;
-    return tag;
-}
 static SES_ID *analyse_ID(ast *tree, env *ev)
 {
-    assert(tree->type == ST_ID);
+    AssertEq(tree->type, ST_ID);
     char *name = *cast(ASTD_Id, tree->data);
     semantics_log(tree->first_line, "%s (%s)", "ID", name);
     symbol *sym = st_find(ev->syms, name);
     SES_ID *tag = new (SES_ID);
-    tag->sym = sym;
+    *tag = st_find(ev->syms, name);
     tree->sem = tag;
     return tag;
 }
 static SES_TYPE *analyse_TYPE(ast *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "TYPE");
-    assert(tree->type == ST_TYPE);
+    AssertEq(tree->type, ST_TYPE);
     SES_TYPE *tag = new (SES_TYPE);
-    tag->tp = new_type_meta(*cast(ASTD_Type, tree->data));
+    *tag = new_type_meta(*cast(ASTD_Type, tree->data));
     tree->sem = tag;
     return tag;
 }
@@ -313,7 +221,7 @@ static void analyse_Program(ast *tree, env *ev)
     // Program : ExtDefList
     //     ;
 
-    assert(tree->type == ST_Program);
+    AssertEq(tree->type, ST_Program);
     analyse_ExtDefList(tree->children[0], ev);
 
     symbol_item *cur = ev->syms->table;
@@ -334,7 +242,7 @@ static void analyse_ExtDefList(ast *tree, env *ev)
     //     | /* empty */
     //     ;
 
-    assert(tree->type == ST_ExtDefList);
+    AssertEq(tree->type, ST_ExtDefList);
 
     if (tree->count == 2)
     {
@@ -350,7 +258,7 @@ static void analyse_ExtDef(ast *tree, env *ev)
     //     | Specifier FunDec CompSt
     //     | Specifier FunDec SEMI
     //     ;
-    assert(tree->type == ST_ExtDef);
+    AssertEq(tree->type, ST_ExtDef);
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
 
@@ -456,7 +364,7 @@ static SES_VarDec *analyse_ExtDecList(ast *tree, env *ev)
     // ExtDecList : VarDec
     //     | VarDec COMMA ExtDecList
     //     ;
-    assert(tree->type == ST_ExtDecList);
+    AssertEq(tree->type, ST_ExtDecList);
 
     SES_VarDec *first = analyse_VarDec(tree->children[0], ev);
     if (tree->count == 3)
@@ -472,7 +380,7 @@ static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
     // Specifier : TYPE
     //     | StructSpecifier
     //     ;
-    assert(tree->type == ST_Specifier);
+    AssertEq(tree->type, ST_Specifier);
     ast *child = tree->children[0];
     SES_Specifier *tag = NULL;
     switch (child->type)
@@ -481,7 +389,7 @@ static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
     {
         tag = new (SES_Specifier);
         SES_TYPE *ct = analyse_TYPE(child, ev);
-        tag->tp = ct->tp;
+        tag->tp = *ct;
     }
     break;
     case ST_StructSpecifier:
@@ -490,7 +398,7 @@ static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
     }
     break;
     }
-    assert(tag != NULL);
+    AssertNotNull(tag);
     tree->sem = tag;
     return tag;
 }
@@ -500,7 +408,7 @@ static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
     // StructSpecifier : STRUCT OptTag LC DefList RC
     //     | STRUCT Tag
     //     ;
-    assert(tree->type == ST_StructSpecifier);
+    AssertEq(tree->type, ST_StructSpecifier);
     SES_Specifier *tag = NULL;
     if (tree->count == 2)
     {
@@ -508,7 +416,7 @@ static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
 
         tag = new (SES_Specifier);
         tag->tp = NULL;
-        tag->struct_name = ctag->name;
+        tag->struct_name = *ctag;
     }
     else
     {
@@ -521,7 +429,7 @@ static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
         cev->in_struct = false;
 
         tag = new (SES_Specifier);
-        tag->struct_name = ctag->name;
+        tag->struct_name = *ctag;
         int memlen = st_len(cev->syms);
         symbol **syms = st_revto_arr(cev->syms);
 
@@ -539,7 +447,7 @@ static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
         tag->tp = tp;
     }
     tree->sem = tag;
-    assert(tag != NULL);
+    AssertNotNull(tag);
     return tree->sem;
 }
 static SES_Tag *analyse_OptTag(ast *tree, env *ev)
@@ -549,18 +457,18 @@ static SES_Tag *analyse_OptTag(ast *tree, env *ev)
     // OptTag : ID
     //     | /* empty */
     //     ;
-    assert(tree->type == ST_OptTag);
+    AssertEq(tree->type, ST_OptTag);
     SES_Tag *tag = new (SES_Tag);
     if (tree->count == 0)
     {
         struct_id++;
         ASTD_Id *name = new (ASTD_Id);
         sprintf(*name, "@STRUCT%d", struct_id);
-        tag->name = *name;
+        *tag = *name;
     }
     else
     {
-        tag->name = *cast(ASTD_Id, tree->children[0]->data);
+        *tag = *cast(ASTD_Id, tree->children[0]->data);
     }
     tree->sem = tag;
     return tag;
@@ -570,9 +478,9 @@ static SES_Tag *analyse_Tag(ast *tree, env *ev)
     semantics_log(tree->first_line, "%s", "Tag");
     // Tag : ID
     //     ;
-    assert(tree->type == ST_Tag);
+    AssertEq(tree->type, ST_Tag);
     SES_Tag *tag = new (SES_Tag);
-    tag->name = *cast(ASTD_Id, tree->children[0]->data);
+    *tag = *cast(ASTD_Id, tree->children[0]->data);
     tree->sem = tag;
     return tag;
 }
@@ -582,8 +490,8 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
     // VarDec : ID
     //     | VarDec LB INT RB
     //     ;
-    assert(tree->type == ST_VarDec);
-    assert(ev->declare_type != NULL);
+    AssertEq(tree->type, ST_VarDec);
+    AssertNotNull(ev->declare_type);
     bool invardec = ev->in_vardec;
     if (tree->count == 1)
     {
@@ -605,7 +513,6 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
     {
         ev->in_vardec = true;
         SES_VarDec *subvar = analyse_VarDec(tree->children[0], ev);
-        SES_INT *len = analyse_INT(tree->children[2], ev);
         ev->in_vardec = invardec;
         int_list *li = new (int_list);
         li->data = *cast(ASTD_Int, tree->children[2]->data);
@@ -639,16 +546,16 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
             return subvar;
         }
     }
-    assert(0);
+    panic("unexpect");
 }
 static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "FunDec");
-    assert(ev->declare_type != NULL);
+    AssertNotNull(ev->declare_type);
     // FunDec : ID LP VarList RP
     //     | ID LP RP
     //     ;
-    assert(tree->type == ST_FunDec);
+    AssertEq(tree->type, ST_FunDec);
 
     char *name = *cast(ASTD_Id, tree->children[0]->data);
     SES_FunDec *tag = new (SES_FunDec);
@@ -697,7 +604,7 @@ static SES_VarDec *analyse_VarList(ast *tree, env *ev)
     // VarList : ParamDec COMMA VarList
     //     | ParamDec
     //     ;
-    assert(tree->type == ST_VarList);
+    AssertEq(tree->type, ST_VarList);
 
     SES_VarDec *first = analyse_ParamDec(tree->children[0], ev);
     if (tree->count == 3)
@@ -710,7 +617,7 @@ static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
     semantics_log(tree->first_line, "%s", "ParamDec");
     // ParamDec : Specifier VarDec
     //     ;
-    assert(tree->type == ST_ParamDec);
+    AssertEq(tree->type, ST_ParamDec);
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
     if (is_struct_specifier(specifier))
@@ -720,7 +627,7 @@ static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
             error_struct_nodef(tree->first_line, specifier->struct_name);
         }
     }
-    assert(ev->declare_type == NULL);
+    AssertIsNull(ev->declare_type);
     ev->declare_type = specifier->tp;
 
     SES_VarDec *vardec = analyse_VarDec(tree->children[1], ev);
@@ -745,7 +652,7 @@ static void analyse_CompSt(ast *tree, env *ev)
     semantics_log(tree->first_line, "%s", "CompSt");
     // CompSt : LC DefList StmtList RC
     //     ;
-    assert(tree->type == ST_CompSt);
+    AssertEq(tree->type, ST_CompSt);
 
     symbol_table *cst = new_symbol_table(ev->syms);
     env *cenv = new (env);
@@ -762,7 +669,7 @@ static void analyse_StmtList(ast *tree, env *ev)
     // StmtList : Stmt StmtList
     //     | /* empty */
     //     ;
-    assert(tree->type == ST_StmtList);
+    AssertEq(tree->type, ST_StmtList);
 
     if (tree->count > 0)
     {
@@ -780,7 +687,7 @@ static void analyse_Stmt(ast *tree, env *ev)
     //     | IF LP Exp RP Stmt ELSE Stmt
     //     | WHILE LP Exp RP Stmt
     //     ;
-    assert(tree->type == ST_Stmt);
+    AssertEq(tree->type, ST_Stmt);
     switch (tree->children[0]->type)
     {
     case ST_Exp: // Exp SEMI
@@ -791,7 +698,7 @@ static void analyse_Stmt(ast *tree, env *ev)
         break;
     case ST_RETURN: // RETURN Exp SEMI
     {
-        assert(ev->ret_type != NULL);
+        AssertNotNull(ev->ret_type);
         SES_Exp *exp = analyse_Exp(tree->children[1], ev);
         if (!type_full_eq(ev->ret_type, exp->tp, false))
             error_return_type(tree->children[1]->first_line);
@@ -827,7 +734,7 @@ static void analyse_DefList(ast *tree, env *ev)
     // DefList : Def DefList
     //     | /* empty */
     //     ;
-    assert(tree->type == ST_DefList);
+    AssertEq(tree->type, ST_DefList);
 
     if (tree->count == 0)
     {
@@ -843,7 +750,7 @@ static void analyse_Def(ast *tree, env *ev)
     semantics_log(tree->first_line, "%s", "Def");
     // Def : Specifier DecList SEMI
     //     ;
-    assert(tree->type == ST_Def);
+    AssertEq(tree->type, ST_Def);
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
 
@@ -892,7 +799,7 @@ static SES_VarDec *analyse_DecList(ast *tree, env *ev)
     // DecList : Dec
     //     | Dec COMMA DecList
     //     ;
-    assert(tree->type == ST_DecList);
+    AssertEq(tree->type, ST_DecList);
 
     SES_VarDec *first = analyse_Dec(tree->children[0], ev);
     if (tree->count > 1)
@@ -906,7 +813,7 @@ static SES_VarDec *analyse_Dec(ast *tree, env *ev)
     // Dec : VarDec
     //     | VarDec ASSIGNOP Exp
     //     ;
-    assert(tree->type == ST_Dec);
+    AssertEq(tree->type, ST_Dec);
 
     SES_VarDec *var = analyse_VarDec(tree->children[0], ev);
     if (tree->count > 1)
@@ -941,7 +848,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
     //     | INT
     //     | FLOAT
     //     ;
-    assert(tree->type == ST_Exp);
+    AssertEq(tree->type, ST_Exp);
 
     SES_Exp *tag = new (SES_Exp);
 
@@ -952,28 +859,26 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         {
         case ST_INT: // INT
         {
-            SES_INT *val = analyse_INT(tree->children[0], ev);
-            tag->tp = val->tp;
+            tag->tp = new_type_meta(MT_INT);
         }
         break;
         case ST_FLOAT: // FLOAT
         {
-            SES_FLOAT *val = analyse_FLOAT(tree->children[0], ev);
-            tag->tp = val->tp;
+            tag->tp = new_type_meta(MT_FLOAT);
         }
         break;
         case ST_ID: // ID
         {
-            SES_ID *val = analyse_ID(tree->children[0], ev);
-            if (val->sym == NULL)
+            symbol *val = *analyse_ID(tree->children[0], ev);
+            if (val == NULL)
             {
                 error_var_nodef(tree->first_line, *cast(ASTD_Id, tree->children[0]->data));
                 tag->tp = new_type_never();
             }
             else
             {
-                tag->sym = val->sym;
-                tag->tp = val->sym->tp;
+                tag->sym = val;
+                tag->tp = val->tp;
             }
         }
         break;
@@ -1012,26 +917,26 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
         break;
         case ST_ID: // ID LP RP
         {
-            SES_ID *val = analyse_ID(tree->children[0], ev);
+            symbol *val = *analyse_ID(tree->children[0], ev);
             char *name = *cast(ASTD_Id, tree->children[0]->data);
-            if (val->sym == NULL)
+            if (val == NULL)
             {
                 error_func_nodef(tree->first_line, name);
                 tag->tp = new_type_never();
             }
-            else if (!type_can_call(val->sym->tp))
+            else if (!type_can_call(val->tp))
             {
                 error_call(tree->first_line);
                 tag->tp = new_type_never();
             }
-            else if (val->sym->tp->argc != 0)
+            else if (val->tp->argc != 0)
             {
                 error_call_type(tree->first_line);
-                tag->tp = val->sym->tp->ret;
+                tag->tp = val->tp->ret;
             }
             else
             {
-                tag->tp = val->sym->tp->ret;
+                tag->tp = val->tp->ret;
             }
         }
         break;
@@ -1152,16 +1057,16 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
     {
         if (tree->children[0]->type == ST_ID) // ID LP Args RP
         {
-            SES_ID *val = analyse_ID(tree->children[0], ev);
+            symbol *val = *analyse_ID(tree->children[0], ev);
             char *name = *cast(ASTD_Id, tree->children[0]->data);
             SES_Exp *args = analyse_Args(tree->children[2], ev);
-            tag = new (SES_Exp);
-            if (val->sym == NULL)
+            tag = new(SES_Exp);
+            if (val == NULL)
             {
                 error_func_nodef(tree->first_line, name);
                 tag->tp = new_type_never();
             }
-            else if (!type_can_call(val->sym->tp))
+            else if (!type_can_call(val->tp))
             {
                 error_call(tree->first_line);
                 tag->tp = new_type_never();
@@ -1169,20 +1074,20 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             else
             {
                 int i = 0;
-                while (args != NULL && i < val->sym->tp->argc)
+                while (args != NULL && i < val->tp->argc)
                 {
-                    if (!type_full_eq(args->tp, val->sym->tp->args[i], false))
+                    if (!type_full_eq(args->tp, val->tp->args[i], false))
                     {
                         error_call_type(args->lineno);
                     }
                     args = args->next;
                     i++;
                 }
-                if (args != NULL || i != val->sym->tp->argc)
+                if (args != NULL || i != val->tp->argc)
                 {
                     error_call_type(tree->first_line);
                 }
-                tag->tp = val->sym->tp->ret;
+                tag->tp = val->tp->ret;
             }
         }
         else // Exp LB Exp RB
@@ -1218,7 +1123,7 @@ static SES_Exp *analyse_Args(ast *tree, env *ev)
     // Args : Exp COMMA Args
     //     | Exp
     //     ;
-    assert(tree->type == ST_Args);
+    AssertEq(tree->type, ST_Args);
 
     SES_Exp *first = analyse_Exp(tree->children[0], ev);
     if (tree->count > 1)
@@ -1249,17 +1154,12 @@ static void analyse(ast *tree)
     analyse_Program(tree, ev);
 }
 
-static bool enable_semantics_log = false;
-static bool enable_semantics_error = true;
 static bool semantics_is_passed = false;
 static char semantics_buffer[1024];
 
 static void semantics_error(int type, int lineno, char *format, ...)
 {
     semantics_is_passed = 0;
-
-    if (!enable_semantics_error)
-        return;
 
     fprintf(stderr, "Error type %d at Line %d: ", type, lineno);
 
@@ -1275,10 +1175,7 @@ static void semantics_error(int type, int lineno, char *format, ...)
 
 static void semantics_log(int lineno, char *format, ...)
 {
-    if (!enable_semantics_log)
-        return;
-
-    fprintf(stdout, "semantics log at Line %d: ", lineno);
+#ifdef DEBUG
 
     va_list aptr;
     int ret;
@@ -1287,17 +1184,9 @@ static void semantics_log(int lineno, char *format, ...)
     vsprintf(semantics_buffer, format, aptr);
     va_end(aptr);
 
-    fprintf(stdout, "%s\n", semantics_buffer);
-}
+#endif
 
-void semantics_set_log(bool enable)
-{
-    enable_semantics_log = enable;
-}
-
-void semantics_set_error(bool enable)
-{
-    enable_semantics_error = enable;
+    Info("Line %d: %s\n", lineno, semantics_buffer);
 }
 
 void semantics_prepare()

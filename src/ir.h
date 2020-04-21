@@ -3,8 +3,6 @@
 
 #include "ast.h"
 
-void ir_set_log(bool enable);
-
 void ir_prepare();
 
 bool ir_work(ast *tree);

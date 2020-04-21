@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "debug.h"
 #include "ast.h"
 #include "lexical.h"
 #include "syntax.h"
@@ -136,8 +136,6 @@ int main(int argc, char **argv)
         show_ast(tree, 0);
         return 0;
     }
-
-    // semantics_set_log(true);
 
     if (!try_semantics(tree))
         return 1;

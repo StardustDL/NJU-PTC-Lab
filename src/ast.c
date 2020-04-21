@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
 #include <stdarg.h>
 #include "ast.h"
 #include "object.h"
+#include "debug.h"
 
 ast *new_ast(int type, int first_line, int count, ...)
 {
-    assert(count >= 0);
+    Assert(count >= 0, "ast children count < 0");
     ast *result = new (ast);
     result->type = type;
     result->first_line = first_line;
@@ -195,7 +195,7 @@ const char *get_syntax_type_name(int type)
 }
 void show_ast(ast *tree, int level)
 {
-    assert(tree != NULL);
+    AssertNotNull(tree);
     if (tree->is_empty)
         return;
     for (int i = 0; i < level; i++)

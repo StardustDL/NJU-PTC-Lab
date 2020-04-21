@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "symbol.h"
 #include "type.h"
-#include "assert.h"
+#include "debug.h"
 #include "object.h"
 
 static type *unit = NULL;
@@ -85,7 +85,7 @@ type *new_type_meta(METATYPE_type metatype)
         }
         return metafloat;
     }
-    assert(0);
+    panic("Unexpect metatype");
 }
 
 static void _show_type(type *a, int level)
@@ -125,8 +125,7 @@ static void _show_type(type *a, int level)
         }
         break;
     default:
-        printf("%d\n", a->cls);
-        assert(0);
+        panic("Unexpect type class %d", a->cls);
     }
 }
 
@@ -187,12 +186,12 @@ bool type_full_eq(type *a, type *b, bool strict_arr)
         }
         return true;
     }
-    assert(0);
+    panic("Unexpect type class %d", a->cls);
 }
 
 type *type_array_descending(type *t)
 {
-    assert(t->cls == TC_ARRAY);
+    AssertEq(t->cls, TC_ARRAY);
     if (t->rank > 1)
     {
         type *result = new_type_array(t->base, t->rank - 1, t->lens + 1);
@@ -200,7 +199,7 @@ type *type_array_descending(type *t)
     }
     else
     {
-        assert(t->rank == 1);
+        AssertEq(t->rank, 1);
         return t->base;
     }
 }

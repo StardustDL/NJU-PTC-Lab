@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "debug.h"
 #include "symbol.h"
 #include "common.h"
 #include "object.h"
@@ -50,7 +50,7 @@ symbol *st_find(symbol_table *table, char *name)
 
 void st_pushfront(symbol_table *table, symbol *sym)
 {
-    assert(st_findonly(table, sym->name) == NULL);
+    AssertIsNull(st_findonly(table, sym->name));
 
     // printf("st->push %s\n", sym->name);
 

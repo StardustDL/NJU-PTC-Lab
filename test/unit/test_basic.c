@@ -3,7 +3,7 @@
 
 testdef(basic)
 {
-    return true;
+    testpass();
 }
 
 void test_init()
