@@ -160,40 +160,40 @@ static void check_create_struct_specifier(SES_Specifier *specifier, env *ev, int
 #pragma endregion
 
 #pragma region
-static SES_TYPE *analyse_TYPE(ast *tree, env *ev);
-static void analyse_Program(ast *tree, env *ev);
-static void analyse_ExtDefList(ast *tree, env *ev);
-static void analyse_ExtDef(ast *tree, env *ev);
-static SES_VarDec *analyse_ExtDecList(ast *tree, env *ev);
-static SES_Specifier *analyse_Specifier(ast *tree, env *ev);
-static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev);
-static SES_Tag *analyse_OptTag(ast *tree, env *ev);
-static SES_Tag *analyse_Tag(ast *tree, env *ev);
-static SES_VarDec *analyse_VarDec(ast *tree, env *ev);
-static SES_FunDec *analyse_FunDec(ast *tree, env *ev);
-static SES_VarDec *analyse_VarList(ast *tree, env *ev);
-static SES_VarDec *analyse_ParamDec(ast *tree, env *ev);
-static void analyse_CompSt(ast *tree, env *ev);
-static void analyse_StmtList(ast *tree, env *ev);
-static void analyse_Stmt(ast *tree, env *ev);
-static void analyse_DefList(ast *tree, env *ev);
-static void analyse_Def(ast *tree, env *ev);
-static SES_VarDec *analyse_DecList(ast *tree, env *ev);
-static SES_VarDec *analyse_Dec(ast *tree, env *ev);
-static SES_Exp *analyse_Exp(ast *tree, env *ev);
-static SES_Exp *analyse_Args(ast *tree, env *ev);
+static SES_TYPE *analyse_TYPE(syntax_tree *tree, env *ev);
+static void analyse_Program(syntax_tree *tree, env *ev);
+static void analyse_ExtDefList(syntax_tree *tree, env *ev);
+static void analyse_ExtDef(syntax_tree *tree, env *ev);
+static SES_VarDec *analyse_ExtDecList(syntax_tree *tree, env *ev);
+static SES_Specifier *analyse_Specifier(syntax_tree *tree, env *ev);
+static SES_Specifier *analyse_StructSpecifier(syntax_tree *tree, env *ev);
+static SES_Tag *analyse_OptTag(syntax_tree *tree, env *ev);
+static SES_Tag *analyse_Tag(syntax_tree *tree, env *ev);
+static SES_VarDec *analyse_VarDec(syntax_tree *tree, env *ev);
+static SES_FunDec *analyse_FunDec(syntax_tree *tree, env *ev);
+static SES_VarDec *analyse_VarList(syntax_tree *tree, env *ev);
+static SES_VarDec *analyse_ParamDec(syntax_tree *tree, env *ev);
+static void analyse_CompSt(syntax_tree *tree, env *ev);
+static void analyse_StmtList(syntax_tree *tree, env *ev);
+static void analyse_Stmt(syntax_tree *tree, env *ev);
+static void analyse_DefList(syntax_tree *tree, env *ev);
+static void analyse_Def(syntax_tree *tree, env *ev);
+static SES_VarDec *analyse_DecList(syntax_tree *tree, env *ev);
+static SES_VarDec *analyse_Dec(syntax_tree *tree, env *ev);
+static SES_Exp *analyse_Exp(syntax_tree *tree, env *ev);
+static SES_Exp *analyse_Args(syntax_tree *tree, env *ev);
 #pragma endregion
 
-static SES_TYPE *analyse_TYPE(ast *tree, env *ev)
+static SES_TYPE *analyse_TYPE(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "TYPE");
     AssertEq(tree->type, ST_TYPE);
     SES_TYPE *tag = new (SES_TYPE);
-    *tag = new_type_meta(*cast(ASTD_Type, tree->data));
+    *tag = new_type_meta(*cast(sytd_type, tree->data));
     tree->sem = tag;
     return tag;
 }
-static void analyse_Program(ast *tree, env *ev)
+static void analyse_Program(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Program");
     // Program : ExtDefList
@@ -213,7 +213,7 @@ static void analyse_Program(ast *tree, env *ev)
         cur = cur->next;
     }
 }
-static void analyse_ExtDefList(ast *tree, env *ev)
+static void analyse_ExtDefList(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "ExtDefList");
     // ExtDefList : ExtDef ExtDefList
@@ -228,7 +228,7 @@ static void analyse_ExtDefList(ast *tree, env *ev)
         analyse_ExtDefList(tree->children[1], ev);
     }
 }
-static void analyse_ExtDef(ast *tree, env *ev)
+static void analyse_ExtDef(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "ExtDef");
     // ExtDef : Specifier ExtDecList SEMI
@@ -336,7 +336,7 @@ static void analyse_ExtDef(ast *tree, env *ev)
     break;
     }
 }
-static SES_VarDec *analyse_ExtDecList(ast *tree, env *ev)
+static SES_VarDec *analyse_ExtDecList(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "ExtDecList");
     // ExtDecList : VarDec
@@ -352,14 +352,14 @@ static SES_VarDec *analyse_ExtDecList(ast *tree, env *ev)
     tree->sem = first;
     return first;
 }
-static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
+static SES_Specifier *analyse_Specifier(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Specifier");
     // Specifier : TYPE
     //     | StructSpecifier
     //     ;
     AssertEq(tree->type, ST_Specifier);
-    ast *child = tree->children[0];
+    syntax_tree *child = tree->children[0];
     SES_Specifier *tag = NULL;
     switch (child->type)
     {
@@ -381,7 +381,7 @@ static SES_Specifier *analyse_Specifier(ast *tree, env *ev)
     tree->sem = tag;
     return tag;
 }
-static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
+static SES_Specifier *analyse_StructSpecifier(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "StructSpecifier");
     // StructSpecifier : STRUCT OptTag LC DefList RC
@@ -429,7 +429,7 @@ static SES_Specifier *analyse_StructSpecifier(ast *tree, env *ev)
     AssertNotNull(tag);
     return tree->sem;
 }
-static SES_Tag *analyse_OptTag(ast *tree, env *ev)
+static SES_Tag *analyse_OptTag(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "OptTag");
     static int struct_id = 0;
@@ -441,29 +441,29 @@ static SES_Tag *analyse_OptTag(ast *tree, env *ev)
     if (tree->count == 0)
     {
         struct_id++;
-        ASTD_Id *name = new (ASTD_Id);
+        sytd_id *name = new (sytd_id);
         sprintf(*name, "@STRUCT%d", struct_id);
         *tag = *name;
     }
     else
     {
-        *tag = *cast(ASTD_Id, tree->children[0]->data);
+        *tag = *cast(sytd_id, tree->children[0]->data);
     }
     tree->sem = tag;
     return tag;
 }
-static SES_Tag *analyse_Tag(ast *tree, env *ev)
+static SES_Tag *analyse_Tag(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Tag");
     // Tag : ID
     //     ;
     AssertEq(tree->type, ST_Tag);
     SES_Tag *tag = new (SES_Tag);
-    *tag = *cast(ASTD_Id, tree->children[0]->data);
+    *tag = *cast(sytd_id, tree->children[0]->data);
     tree->sem = tag;
     return tag;
 }
-static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
+static SES_VarDec *analyse_VarDec(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "VarDec");
     // VarDec : ID
@@ -474,7 +474,7 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
     bool invardec = ev->in_vardec;
     if (tree->count == 1)
     {
-        char *name = *cast(ASTD_Id, tree->children[0]->data);
+        char *name = *cast(sytd_id, tree->children[0]->data);
         SES_VarDec *tag = new (SES_VarDec);
         if (invardec)
         {
@@ -493,7 +493,7 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
         ev->in_vardec = true;
         SES_VarDec *subvar = analyse_VarDec(tree->children[0], ev);
         ev->in_vardec = invardec;
-        subvar->lens = list_pushfront(subvar->lens, cast(ASTD_Int, tree->children[2]->data));
+        subvar->lens = list_pushfront(subvar->lens, cast(sytd_int, tree->children[2]->data));
         subvar->lineno = tree->first_line;
         if (invardec)
         {
@@ -513,7 +513,7 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
             cur = subvar->lens;
             while (cur != NULL)
             {
-                lens[listlen - 1 - i] = *cast(ASTD_Int, cur->obj);
+                lens[listlen - 1 - i] = *cast(sytd_int, cur->obj);
                 i++;
                 cur = cur->next;
             }
@@ -524,7 +524,7 @@ static SES_VarDec *analyse_VarDec(ast *tree, env *ev)
     }
     panic("unexpect");
 }
-static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
+static SES_FunDec *analyse_FunDec(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "FunDec");
     AssertNotNull(ev->declare_type);
@@ -533,7 +533,7 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
     //     ;
     AssertEq(tree->type, ST_FunDec);
 
-    char *name = *cast(ASTD_Id, tree->children[0]->data);
+    char *name = *cast(sytd_id, tree->children[0]->data);
     SES_FunDec *tag = new (SES_FunDec);
     tag->lineno = tree->first_line;
 
@@ -574,7 +574,7 @@ static SES_FunDec *analyse_FunDec(ast *tree, env *ev)
     tree->sem = tag;
     return tag;
 }
-static SES_VarDec *analyse_VarList(ast *tree, env *ev)
+static SES_VarDec *analyse_VarList(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "VarList");
     // VarList : ParamDec COMMA VarList
@@ -588,7 +588,7 @@ static SES_VarDec *analyse_VarList(ast *tree, env *ev)
     tree->sem = first;
     return first;
 }
-static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
+static SES_VarDec *analyse_ParamDec(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "ParamDec");
     // ParamDec : Specifier VarDec
@@ -623,7 +623,7 @@ static SES_VarDec *analyse_ParamDec(ast *tree, env *ev)
 
     return vardec;
 }
-static void analyse_CompSt(ast *tree, env *ev)
+static void analyse_CompSt(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "CompSt");
     // CompSt : LC DefList StmtList RC
@@ -639,7 +639,7 @@ static void analyse_CompSt(ast *tree, env *ev)
 
     analyse_StmtList(tree->children[2], cenv);
 }
-static void analyse_StmtList(ast *tree, env *ev)
+static void analyse_StmtList(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "StmtList");
     // StmtList : Stmt StmtList
@@ -653,7 +653,7 @@ static void analyse_StmtList(ast *tree, env *ev)
         analyse_StmtList(tree->children[1], ev);
     }
 }
-static void analyse_Stmt(ast *tree, env *ev)
+static void analyse_Stmt(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Stmt");
     // Stmt : Exp SEMI
@@ -704,7 +704,7 @@ static void analyse_Stmt(ast *tree, env *ev)
     break;
     }
 }
-static void analyse_DefList(ast *tree, env *ev)
+static void analyse_DefList(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "DefList");
     // DefList : Def DefList
@@ -718,7 +718,7 @@ static void analyse_DefList(ast *tree, env *ev)
         analyse_DefList(tree->children[1], ev);
     }
 }
-static void analyse_Def(ast *tree, env *ev)
+static void analyse_Def(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Def");
     // Def : Specifier DecList SEMI
@@ -764,7 +764,7 @@ static void analyse_Def(ast *tree, env *ev)
     }
     ev->declare_type = NULL;
 }
-static SES_VarDec *analyse_DecList(ast *tree, env *ev)
+static SES_VarDec *analyse_DecList(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "DecList");
     // DecList : Dec
@@ -778,7 +778,7 @@ static SES_VarDec *analyse_DecList(ast *tree, env *ev)
     tree->sem = first;
     return first;
 }
-static SES_VarDec *analyse_Dec(ast *tree, env *ev)
+static SES_VarDec *analyse_Dec(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Dec");
     // Dec : VarDec
@@ -798,15 +798,15 @@ static SES_VarDec *analyse_Dec(ast *tree, env *ev)
     return var;
 }
 
-static symbol *get_symbol_by_id(ast *tree, env *ev)
+static symbol *get_symbol_by_id(syntax_tree *tree, env *ev)
 {
     AssertEq(tree->type, ST_ID);
-    char *name = *cast(ASTD_Id, tree->data);
+    char *name = *cast(sytd_id, tree->data);
     symbol *val = st_find(ev->syms, name);
     return val;
 }
 
-static SES_Exp *analyse_Exp(ast *tree, env *ev)
+static SES_Exp *analyse_Exp(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Exp");
     // Exp : Exp ASSIGNOP Exp
@@ -852,7 +852,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             symbol *val = get_symbol_by_id(tree->children[0], ev);
             if (val == NULL)
             {
-                error_var_nodef(tree->first_line, *cast(ASTD_Id, tree->children[0]->data));
+                error_var_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
                 tag->tp = new_type_never();
             }
             else
@@ -901,7 +901,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             symbol *val = get_symbol_by_id(tree->children[0], ev);
             if (val == NULL)
             {
-                error_func_nodef(tree->first_line, *cast(ASTD_Id, tree->children[0]->data));
+                error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
                 tag->tp = new_type_never();
             }
             else if (!type_can_call(val->tp))
@@ -923,7 +923,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             case ST_DOT: // Exp DOT ID
             {
                 SES_Exp *exp = analyse_Exp(tree->children[0], ev);
-                char *name = *cast(ASTD_Id, tree->children[2]->data);
+                char *name = *cast(sytd_id, tree->children[2]->data);
                 if (!type_can_member(exp->tp))
                 {
                     error_member(tree->first_line);
@@ -1035,7 +1035,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
             tag = new (SES_Exp);
             if (val == NULL)
             {
-                error_func_nodef(tree->first_line, *cast(ASTD_Id, tree->children[0]->data));
+                error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
                 tag->tp = new_type_never();
             }
             else if (!type_can_call(val->tp))
@@ -1089,7 +1089,7 @@ static SES_Exp *analyse_Exp(ast *tree, env *ev)
     tree->sem = tag;
     return tag;
 }
-static SES_Exp *analyse_Args(ast *tree, env *ev)
+static SES_Exp *analyse_Args(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Args");
     // Args : Exp COMMA Args
@@ -1104,7 +1104,7 @@ static SES_Exp *analyse_Args(ast *tree, env *ev)
     return first;
 }
 
-static void analyse(ast *tree)
+static void analyse(syntax_tree *tree)
 {
     env *ev = new (env);
     ev->syms = new_symbol_table(NULL);
@@ -1164,7 +1164,7 @@ void semantics_prepare()
     semantics_is_passed = true;
 }
 
-bool semantics_work(ast *tree)
+bool semantics_work(syntax_tree *tree)
 {
     analyse(tree);
     return semantics_has_passed();

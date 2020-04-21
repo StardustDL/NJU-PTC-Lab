@@ -5,7 +5,7 @@
 
 void ir_prepare();
 
-bool ir_work(ast *tree);
+bool ir_work(syntax_tree *tree);
 
 bool ir_has_passed();
 

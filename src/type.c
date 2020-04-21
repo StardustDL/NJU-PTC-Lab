@@ -11,7 +11,7 @@ static type *any = NULL;
 static type *never = NULL;
 static type *metaint = NULL, *metafloat = NULL;
 
-static type *new_type(TYPE_CLASS cls)
+static type *new_type(type_class cls)
 {
     type *result = new (type);
     result->cls = cls;
@@ -73,7 +73,7 @@ type *new_type_never()
     return never;
 }
 
-type *new_type_meta(METATYPE_type metatype)
+type *new_type_meta(metatype_type metatype)
 {
     switch (metatype)
     {

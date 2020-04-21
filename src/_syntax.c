@@ -10,11 +10,11 @@
 extern int yylineno;
 extern int yyparse();
 
-static ast *syntax_result = NULL;
+static syntax_tree *syntax_result = NULL;
 static bool syntax_is_passed = false;
 static char syntax_buffer[1024];
 
-void syntax_set_result(ast *result)
+void syntax_set_result(syntax_tree *result)
 {
     syntax_result = result;
 }
@@ -119,7 +119,7 @@ bool syntax_has_passed()
     return syntax_is_passed && lexical_has_passed();
 }
 
-ast *syntax_work()
+syntax_tree *syntax_work()
 {
     yyparse();
     if (syntax_has_passed())

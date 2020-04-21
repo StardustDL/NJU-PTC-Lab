@@ -6,14 +6,14 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ubuntu-16.04, ubuntu-18.04]
+        os: [ubuntu-16.04]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install toolchain
         run: |
-          sudo apt-get install -yq bison flex dos2unix python python3
+          sudo apt-get install -yq bison flex dos2unix
           dos2unix $(find -name '*.sh')
           chmod +x $(find -name '*.sh')
       - name: Build

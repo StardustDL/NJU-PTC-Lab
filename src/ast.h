@@ -2,6 +2,7 @@
 #define __AST_H__
 
 #include "common.h"
+#include "symbol.h"
 
 typedef enum
 {
@@ -54,50 +55,69 @@ typedef enum
     ST_Dec,
     ST_Exp,
     ST_Args
-} SYNTAX_type;
+} syntax_type;
 
-typedef enum
+typedef unsigned int sytd_int;
+
+typedef float sytd_float;
+
+typedef relop_type sytd_relop;
+
+typedef metatype_type sytd_type;
+
+typedef char sytd_id[64];
+
+typedef struct __syntax_tree
 {
-    RELOP_L,
-    RELOP_S,
-    RELOP_LE,
-    RELOP_SE,
-    RELOP_E,
-    RELOP_NE
-} RELOP_type;
-
-typedef enum
-{
-    MT_INT,
-    MT_FLOAT
-} METATYPE_type;
-
-typedef unsigned int ASTD_Int;
-
-typedef float ASTD_Float;
-
-typedef RELOP_type ASTD_Relop;
-
-typedef METATYPE_type ASTD_Type;
-
-typedef char ASTD_Id[64];
-
-typedef struct __ast
-{
-    SYNTAX_type type;
+    syntax_type type;
     bool is_empty;
     bool is_token;
     int count;
-    struct __ast **children;
+    struct __syntax_tree **children;
     int first_line;
     void *data;
     void *sem;
+} syntax_tree;
+
+syntax_tree *new_syntax_tree(int type, int first_line, int count, ...);
+
+void delete_syntax_tree(syntax_tree *tree);
+
+void show_syntax_tree(syntax_tree *tree);
+
+#define __ast_base      \
+    symbol_table *syms; \
+    int count;          \
+    void **children
+
+typedef struct
+{
+    __ast_base;
 } ast;
 
-ast *new_ast(int type, int first_line, int count, ...);
+typedef struct
+{
+    type *tp;
+    __ast_base;
+} ast_exp;
 
-void delete_ast(ast *ast);
+typedef struct
+{
+    ast_exp *cond;
+    __ast_base;
+} ast_if;
 
-void show_ast(ast *ast, int level);
+typedef struct
+{
+    ast_exp *cond;
+    __ast_base;
+} ast_while;
+
+typedef struct
+{
+    symbol *var;
+    ast_exp *init;
+    __ast_base;
+} ast_def;
 
 #endif

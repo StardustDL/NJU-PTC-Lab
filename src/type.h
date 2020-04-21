@@ -17,7 +17,7 @@ type *new_type_unit();
 
 type *new_type_never();
 
-type *new_type_meta(METATYPE_type metatype);
+type *new_type_meta(metatype_type metatype);
 
 type *type_array_descending(type *t);
 

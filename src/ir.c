@@ -50,7 +50,7 @@ void ir_prepare()
     ir_is_passed = true;
 }
 
-bool ir_work(ast *tree)
+bool ir_work(syntax_tree *tree)
 {
     return ir_has_passed();
 }

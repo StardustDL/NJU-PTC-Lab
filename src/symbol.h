@@ -1,8 +1,23 @@
 #ifndef __SYMBOL_H__
 #define __SYMBOL_H__
 
-#include "ast.h"
 #include "list.h"
+
+typedef enum
+{
+    RT_L,
+    RT_S,
+    RT_LE,
+    RT_SE,
+    RT_E,
+    RT_NE
+} relop_type;
+
+typedef enum
+{
+    MT_INT,
+    MT_FLOAT
+} metatype_type;
 
 typedef enum
 {
@@ -14,16 +29,16 @@ typedef enum
     TC_FUNC,
     TC_STRUCT,
     TC_TYPE
-} TYPE_CLASS;
+} type_class;
 
 struct __symbol_table;
 
 typedef struct __type
 {
-    TYPE_CLASS cls;
+    type_class cls;
     ll hash;
     union {
-        METATYPE_type metatype;
+        metatype_type metatype;
         struct
         {
             struct __type *base;
@@ -52,15 +67,14 @@ typedef enum
 {
     SS_DEC,
     SS_DEF
-} SYMBOL_state;
+} symbol_state;
 
 typedef struct __symbol
 {
     char name[64];
     int lineno;
-    bool is_struct;
     type *tp;
-    SYMBOL_state state;
+    symbol_state state;
 } symbol;
 
 typedef struct __symbol_table
@@ -69,7 +83,7 @@ typedef struct __symbol_table
     list *table;
 } symbol_table;
 
-symbol *new_symbol(char *name, int lineno, type *tp, SYMBOL_state state);
+symbol *new_symbol(char *name, int lineno, type *tp, symbol_state state);
 
 symbol_table *new_symbol_table(symbol_table *parent);
 

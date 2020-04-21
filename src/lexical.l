@@ -17,7 +17,7 @@ extern void lexical_log(char *format, ...);
 #define YY_USER_ACTION \
     yylloc.first_line = yylloc.last_line = yylineno; \
     yylloc.first_column = yycolumn; yylloc.last_column = yycolumn+yyleng-1; \
-    yycolumn += yyleng; yylval = new_ast(ST_EMPTY, yylloc.first_line, 0); yylval->is_token = 1;
+    yycolumn += yyleng; yylval = new_syntax_tree(ST_EMPTY, yylloc.first_line, 0); yylval->is_token = 1;
 #define SIMPLE_OP(lex_type) \
     lexical_log(#lex_type " %s", yytext); \
     yylval->type = ST_##lex_type; \
@@ -60,7 +60,7 @@ letter [a-zA-Z]
 (0|[1-9][0-9]*) {
     // decimal integer
     yylval->type = ST_INT;
-    ASTD_Int* data = new(ASTD_Int);
+    sytd_int* data = new(sytd_int);
     *data = strtol(yytext, NULL, 10);
     lexical_log("INT '%s' -> %u", yytext, *data);
     yylval->data = data;
@@ -75,7 +75,7 @@ letter [a-zA-Z]
             lexical_error("Illegal octal number '%s'", yytext);
     }
     yylval->type = ST_INT;
-    ASTD_Int* data = new(ASTD_Int);
+    sytd_int* data = new(sytd_int);
     *data = strtol(yytext, NULL, 8);
     lexical_log("INT '%s' -> %u", yytext, *data);
     yylval->data = data;
@@ -92,21 +92,21 @@ letter [a-zA-Z]
             lexical_error("Illegal hexadecimal number '%s'", yytext);
     }
     yylval->type = ST_INT;
-    ASTD_Int* data = new(ASTD_Int);
+    sytd_int* data = new(sytd_int);
     *data = strtol(yytext, NULL, 16);
     lexical_log("INT '%s' -> %u", yytext, *data);
     yylval->data = data;
     return INT;
 }
 {digit}+\.{digit}+ { 
-    ASTD_Float* data = new(ASTD_Float);
+    sytd_float* data = new(sytd_float);
     *data = strtof(yytext, NULL);
     yylval->data = data;
     SIMPLE_OP(FLOAT); 
     /* normal float */
 }
 ({digit}+\.{digit}*|\.{digit}+)[eE][+-]?{digit}+ { 
-    ASTD_Float* data = new(ASTD_Float);
+    sytd_float* data = new(sytd_float);
     *data = strtof(yytext, NULL);
     yylval->data = data;
     SIMPLE_OP(FLOAT); 
@@ -116,7 +116,7 @@ letter [a-zA-Z]
 ({digit}+\.{digit}*|\.{digit}+)[eE] { lexical_error("Illegal float number '%s'", yytext); /* illegal scientific notation float */ }
 "." { SIMPLE_OP(DOT); }
 "int"|"float" { 
-    ASTD_Type* data = new(ASTD_Type);
+    sytd_type* data = new(sytd_type);
     *data = yytext[0] == 'i' ? MT_INT : MT_FLOAT;
     yylval->data = data;
     SIMPLE_OP(TYPE); 
@@ -127,7 +127,7 @@ letter [a-zA-Z]
 "else" { SIMPLE_OP(ELSE); }
 "while" { SIMPLE_OP(WHILE); }
 (_|{letter})(_|{letter}|{digit})* {
-    ASTD_Id* data = new(ASTD_Id);
+    sytd_id* data = new(sytd_id);
     strcpy(*data, yytext); 
     yylval->data = data;
     SIMPLE_OP(ID);
@@ -136,26 +136,26 @@ letter [a-zA-Z]
 "," { SIMPLE_OP(COMMA); }
 "=" { SIMPLE_OP(ASSIGNOP); }
 ">"|"<"|">="|"<="|"=="|"!=" {
-    ASTD_Relop* data = new(ASTD_Relop);
+    sytd_relop* data = new(sytd_relop);
     if(yyleng == 1)
     {
-        *data = yytext[0] == '>' ? RELOP_L : RELOP_S;
+        *data = yytext[0] == '>' ? RT_L : RT_S;
     }
     else
     {
         switch(yytext[0])
         {
             case '>':
-                *data = RELOP_LE;
+                *data = RT_LE;
                 break;
             case '<':
-                *data = RELOP_SE;
+                *data = RT_SE;
                 break;
             case '=':
-                *data = RELOP_E;
+                *data = RT_E;
                 break;
             case '!':
-                *data = RELOP_NE;
+                *data = RT_NE;
                 break;
         }
     }

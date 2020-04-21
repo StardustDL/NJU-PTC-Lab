@@ -63,23 +63,23 @@ static bool try_lexical(FILE *input)
     return result;
 }
 
-static ast *try_syntax(FILE *input)
+static syntax_tree *try_syntax(FILE *input)
 {
     lexical_prepare(input);
     syntax_prepare();
-    ast *result = syntax_work();
+    syntax_tree *result = syntax_work();
     fclose(input);
     return result;
 }
 
-static bool try_semantics(ast *tree)
+static bool try_semantics(syntax_tree *tree)
 {
     semantics_prepare();
     bool result = semantics_work(tree);
     return result;
 }
 
-static bool try_ir(ast *tree, FILE *outfile)
+static bool try_ir(syntax_tree *tree, FILE *outfile)
 {
     fputs("FUNCTION main :\n", outfile);
     fputs("READ t1\n", outfile);
@@ -127,13 +127,13 @@ int main(int argc, char **argv)
     if (strcmp(option, "--lexcial") == 0)
         return try_lexical(input) ? 0 : 1;
 
-    ast *tree = try_syntax(input);
+    syntax_tree *tree = try_syntax(input);
     if (tree == NULL)
         return 1;
 
     if (strcmp(option, "--syntax") == 0)
     {
-        show_ast(tree, 0);
+        show_syntax_tree(tree);
         return 0;
     }
 

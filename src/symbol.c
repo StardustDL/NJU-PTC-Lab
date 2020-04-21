@@ -5,7 +5,7 @@
 #include "common.h"
 #include "object.h"
 
-symbol *new_symbol(char *name, int lineno, type *tp, SYMBOL_state state)
+symbol *new_symbol(char *name, int lineno, type *tp, symbol_state state)
 {
     symbol *result = new (symbol);
     strcpy(result->name, name);

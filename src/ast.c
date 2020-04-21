@@ -6,10 +6,10 @@
 #include "object.h"
 #include "debug.h"
 
-ast *new_ast(int type, int first_line, int count, ...)
+syntax_tree *new_syntax_tree(int type, int first_line, int count, ...)
 {
-    Assert(count >= 0, "ast children count < 0");
-    ast *result = new (ast);
+    Assert(count >= 0, "syntax_tree children count < 0");
+    syntax_tree *result = new (syntax_tree);
     result->type = type;
     result->first_line = first_line;
     result->is_empty = false;
@@ -18,24 +18,24 @@ ast *new_ast(int type, int first_line, int count, ...)
     result->sem = NULL;
     if (count > 0)
     {
-        result->children = newarr(ast, count);
+        result->children = newarr(syntax_tree, count);
         va_list valist;
         va_start(valist, count);
         for (int i = 0; i < count; i++)
-            result->children[i] = va_arg(valist, ast *);
+            result->children[i] = va_arg(valist, syntax_tree *);
     }
     else
         result->children = NULL;
     return result;
 }
-void delete_ast(ast *ast)
+void delete_syntax_tree(syntax_tree *tree)
 {
-    if (ast == NULL)
+    if (tree == NULL)
         return;
 
-    for (int i = 0; i < ast->count; i++)
-        delete_ast(ast->children[i]);
-    delete (ast);
+    for (int i = 0; i < tree->count; i++)
+        delete_syntax_tree(tree->children[i]);
+    delete (tree);
 }
 
 const char *get_syntax_type_name(int type)
@@ -193,7 +193,7 @@ const char *get_syntax_type_name(int type)
     }
     return result;
 }
-void show_ast(ast *tree, int level)
+void _show_syntax_tree(syntax_tree *tree, int level)
 {
     AssertNotNull(tree);
     if (tree->is_empty)
@@ -206,10 +206,10 @@ void show_ast(ast *tree, int level)
         switch (tree->type)
         {
         case ST_ID:
-            printf(": %s", *cast(ASTD_Id, tree->data));
+            printf(": %s", *cast(sytd_id, tree->data));
             break;
         case ST_TYPE:
-            switch (*cast(ASTD_Type, tree->data))
+            switch (*cast(sytd_type, tree->data))
             {
             case MT_INT:
                 printf(": %s", "int");
@@ -220,10 +220,10 @@ void show_ast(ast *tree, int level)
             }
             break;
         case ST_INT:
-            printf(": %u", *cast(ASTD_Int, tree->data));
+            printf(": %u", *cast(sytd_int, tree->data));
             break;
         case ST_FLOAT:
-            printf(": %.6f", *cast(ASTD_Float, tree->data));
+            printf(": %.6f", *cast(sytd_float, tree->data));
             break;
         }
     }
@@ -234,7 +234,12 @@ void show_ast(ast *tree, int level)
     puts("");
     for (int i = 0; i < tree->count; i++)
     {
-        ast *child = tree->children[i];
-        show_ast(child, level + 1);
+        syntax_tree *child = tree->children[i];
+        _show_syntax_tree(child, level + 1);
     }
+}
+
+void show_syntax_tree(syntax_tree *tree)
+{
+    _show_syntax_tree(tree, 0);
 }
