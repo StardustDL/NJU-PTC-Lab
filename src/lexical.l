@@ -49,7 +49,7 @@ letter [a-zA-Z]
             }
             else unput(c2);
         }
-    } while (c != 0);
+    } while (c != 0 && c != EOF);
     if (!flag)
         lexical_error("Missing '*/' for block comments", yylineno);
     lexical_log("Block comment");
