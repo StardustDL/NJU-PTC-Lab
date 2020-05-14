@@ -12,15 +12,6 @@
 
 #pragma region structs
 
-typedef struct
-{
-    symbol_table *syms;
-    type *declare_type;
-    type *ret_type;
-    bool in_struct;
-    bool in_vardec;
-} env;
-
 #pragma endregion
 
 // #pragma region
