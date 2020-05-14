@@ -14,8 +14,8 @@
 
 #pragma endregion
 
-// #pragma region
-// static void translate_Program(syntax_tree *tree, env *ev);
+#pragma region
+static void translate_Program(syntax_tree *tree, env *ev);
 // static void translate_ExtDefList(syntax_tree *tree, env *ev);
 // static void translate_ExtDef(syntax_tree *tree, env *ev);
 // static void translate_ExtDecList(syntax_tree *tree, env *ev);
@@ -29,28 +29,17 @@
 // static void translate_Dec(syntax_tree *tree, env *ev);
 // static void translate_Exp(syntax_tree *tree, env *ev);
 // static void translate_Args(syntax_tree *tree, env *ev);
-// #pragma endregion
+#pragma endregion
 
-// static void translate_Program(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "Program");
-//     // Program : ExtDefList
-//     //     ;
+static void translate_Program(syntax_tree *tree, env *ev)
+{
+    ir_log(tree->first_line, "%s", "Program");
+    // Program : ExtDefList
+    //     ;
 
-//     AssertEq(tree->type, ST_Program);
-//     translate_ExtDefList(tree->children[0], ev);
-
-//     list *cur = ev->syms->table;
-//     while (cur != NULL)
-//     {
-//         symbol *sym = cast(symbol, cur->obj);
-//         if (sym->tp->cls == TC_FUNC && sym->state == SS_DEC)
-//         {
-//             error_func_decnodef(sym->lineno, sym->name);
-//         }
-//         cur = cur->next;
-//     }
-// }
+    AssertEq(tree->type, ST_Program);
+    translate_ExtDefList(tree->children[0], ev);
+}
 // static void translate_ExtDefList(syntax_tree *tree, env *ev)
 // {
 //     ir_log(tree->first_line, "%s", "ExtDefList");

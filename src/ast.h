@@ -95,23 +95,95 @@ void delete_syntax_tree(syntax_tree *tree);
 
 void show_syntax_tree(syntax_tree *tree);
 
+typedef struct
+{
+    list *irs;
+} ast;
+
 typedef enum
 {
-    OP_Assign,
-    OP_And,
-    OP_Or,
-    OP_PLUS,
-    OP_MINUS,
-    OP_STAR,
-    OP_DIV,
-    OP_NEG,
-    OP_NOT,
-} op_type;
+    IR_Label,
+    IR_Func,
+    IR_Assign,
+    IR_Add,
+    IR_Sub,
+    IR_Mul,
+    IR_Div,
+    IR_Ref,
+    IR_Deref,
+    IR_Refassign,
+    IR_Goto,
+    IR_Branch,
+    IR_Return,
+    IR_Dec,
+    IR_Arg,
+    IR_Call,
+    IR_Param,
+    IR_Read,
+    IR_Write
+} irc_type;
+
+typedef enum
+{
+    IRO_Variable,
+    IRO_Constant,
+    IRO_Address,
+} irop_type;
 
 typedef struct
 {
-    int count;
-    void **children;
-} ast;
+    char name[32];
+} ir_var;
+
+typedef struct
+{
+    char name[32];
+} irlabel;
+
+typedef struct
+{
+    irop_type kind;
+    union {
+        ir_var *var;
+        int value;
+    };
+} irop;
+
+typedef struct
+{
+    irop_type kind;
+    union {
+        struct
+        {
+            irop left, right;
+        } assign;
+        struct
+        {
+            irop op1, op2, target;
+        } bop;
+        irlabel *label;
+        struct
+        {
+            irop op1, op2;
+            relop_type relop;
+            irlabel target;
+        } branch;
+        irop ret;
+        struct
+        {
+            irop var;
+            int size;
+        } dec;
+        irop arg;
+        irop param;
+        irop read;
+        irop write;
+        struct
+        {
+            irlabel *func;
+            irop ret;
+        } func;
+    };
+} ircode;
 
 #endif
