@@ -5,7 +5,7 @@
 
 type *new_type_array(type *base, int rank, int *lens);
 
-type *new_type_func(int argc, type **args, type *ret);
+type *new_type_func(int argc, symbol **args, type *ret);
 
 type *new_type_struct(int memc, symbol **mems);
 

@@ -15,19 +15,11 @@
 #pragma endregion
 
 // #pragma region
-// static void translate_TYPE(syntax_tree *tree, env *ev);
 // static void translate_Program(syntax_tree *tree, env *ev);
 // static void translate_ExtDefList(syntax_tree *tree, env *ev);
 // static void translate_ExtDef(syntax_tree *tree, env *ev);
 // static void translate_ExtDecList(syntax_tree *tree, env *ev);
-// static void translate_Specifier(syntax_tree *tree, env *ev);
-// static void translate_StructSpecifier(syntax_tree *tree, env *ev);
-// static void translate_OptTag(syntax_tree *tree, env *ev);
-// static void translate_Tag(syntax_tree *tree, env *ev);
 // static void translate_VarDec(syntax_tree *tree, env *ev);
-// static void translate_FunDec(syntax_tree *tree, env *ev);
-// static void translate_VarList(syntax_tree *tree, env *ev);
-// static void translate_ParamDec(syntax_tree *tree, env *ev);
 // static void translate_CompSt(syntax_tree *tree, env *ev);
 // static void translate_StmtList(syntax_tree *tree, env *ev);
 // static void translate_Stmt(syntax_tree *tree, env *ev);
@@ -39,15 +31,6 @@
 // static void translate_Args(syntax_tree *tree, env *ev);
 // #pragma endregion
 
-// static void translate_TYPE(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "TYPE");
-//     AssertEq(tree->type, ST_TYPE);
-//     void tag = new (SES_TYPE);
-//     *tag = new_type_meta(*cast(sytd_type, tree->data));
-//     tree->sem = tag;
-//     return tag;
-// }
 // static void translate_Program(syntax_tree *tree, env *ev)
 // {
 //     ir_log(tree->first_line, "%s", "Program");
@@ -207,117 +190,6 @@
 //     tree->sem = first;
 //     return first;
 // }
-// static void translate_Specifier(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "Specifier");
-//     // Specifier : TYPE
-//     //     | StructSpecifier
-//     //     ;
-//     AssertEq(tree->type, ST_Specifier);
-//     syntax_tree *child = tree->children[0];
-//     void tag = NULL;
-//     switch (child->type)
-//     {
-//     case ST_TYPE:
-//     {
-//         tag = new (SES_Specifier);
-//         void ct = translate_TYPE(child, ev);
-//         tag->tp = new_type_type(*ct);
-//     }
-//     break;
-//     case ST_StructSpecifier:
-//     {
-//         tag = translate_StructSpecifier(child, ev);
-//     }
-//     break;
-//     }
-//     AssertNotNull(tag);
-//     Assert(tag->tp == NULL || type_is_type(tag->tp), "Not Type Class");
-//     tree->sem = tag;
-//     return tag;
-// }
-// static void translate_StructSpecifier(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "StructSpecifier");
-//     // StructSpecifier : STRUCT OptTag LC DefList RC
-//     //     | STRUCT Tag
-//     //     ;
-//     AssertEq(tree->type, ST_StructSpecifier);
-//     void tag = NULL;
-//     if (tree->count == 2)
-//     {
-//         void ctag = translate_Tag(tree->children[1], ev);
-
-//         tag = new (SES_Specifier);
-//         tag->tp = NULL;
-//         tag->struct_name = *ctag;
-//     }
-//     else
-//     {
-//         void ctag = translate_OptTag(tree->children[1], ev);
-
-//         env *cev = new (env);
-//         cev->syms = new_symbol_table(ev->syms);
-//         cev->in_struct = true;
-//         translate_DefList(tree->children[3], cev);
-//         cev->in_struct = false;
-
-//         tag = new (SES_Specifier);
-//         tag->struct_name = *ctag;
-//         int memlen = st_len(cev->syms);
-//         symbol **syms = st_revto_arr(cev->syms);
-
-//         for (int i = 0; i < memlen; i++)
-//         {
-//             if (!type_is_type(syms[i]->tp))
-//                 continue;
-//             for (int j = i; j < memlen - 1; j++)
-//                 syms[j] = syms[j + 1];
-//             memlen--;
-//             i--;
-//         }
-
-//         type *tp = new_type_struct(memlen, syms);
-//         tag->tp = new_type_type(tp);
-//     }
-//     tree->sem = tag;
-//     AssertNotNull(tag);
-//     return tree->sem;
-// }
-// static void translate_OptTag(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "OptTag");
-//     static int struct_id = 0;
-//     // OptTag : ID
-//     //     | /* empty */
-//     //     ;
-//     AssertEq(tree->type, ST_OptTag);
-//     void tag = new (SES_Tag);
-//     if (tree->count == 0)
-//     {
-//         struct_id++;
-//         sytd_id *name = new (sytd_id);
-//         sprintf(*name, "@STRUCT%d", struct_id);
-//         *tag = *name;
-//     }
-//     else
-//     {
-//         *tag = *cast(sytd_id, tree->children[0]->data);
-//     }
-//     tree->sem = tag;
-//     return tag;
-// }
-// static void translate_Tag(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "Tag");
-//     // Tag : ID
-//     //     ;
-//     AssertEq(tree->type, ST_Tag);
-//     void tag = new (SES_Tag);
-//     *tag = *cast(sytd_id, tree->children[0]->data);
-//     tree->sem = tag;
-//     return tag;
-// }
 // static void translate_VarDec(syntax_tree *tree, env *ev)
 // {
 //     ir_log(tree->first_line, "%s", "VarDec");
@@ -378,105 +250,6 @@
 //         }
 //     }
 //     panic("unexpect");
-// }
-// static void translate_FunDec(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "FunDec");
-//     AssertNotNull(ev->declare_type);
-//     // FunDec : ID LP VarList RP
-//     //     | ID LP RP
-//     //     ;
-//     AssertEq(tree->type, ST_FunDec);
-
-//     char *name = *cast(sytd_id, tree->children[0]->data);
-//     void tag = new (SES_FunDec);
-//     tag->lineno = tree->first_line;
-
-//     env *funcev = new (env);
-//     funcev->syms = new_symbol_table(ev->syms);
-//     tag->ev = funcev;
-
-//     if (tree->count == 3)
-//     {
-//         symbol *sym = new_symbol(name, tree->first_line, new_type_func(0, NULL, ev->declare_type), SS_DEC);
-//         tag->sym = sym;
-//     }
-//     else
-//     {
-//         void varlist = translate_VarList(tree->children[2], funcev);
-//         int len = 0;
-//         void cur = varlist;
-//         while (cur != NULL)
-//         {
-//             len++;
-//             cur = cur->next;
-//         }
-//         type **args = newarr(type, len);
-//         cur = varlist;
-//         int i = 0;
-//         while (cur != NULL)
-//         {
-//             args[i] = cur->sym->tp;
-//             i++;
-//             cur = cur->next;
-//         }
-//         type *ftp = new_type_func(len, args, ev->declare_type);
-//         symbol *sym = new_symbol(name, tree->first_line, ftp, SS_DEC);
-//         tag->sym = sym;
-//     }
-
-//     st_add(funcev->syms, tag->sym);
-//     tree->sem = tag;
-//     return tag;
-// }
-// static void translate_VarList(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "VarList");
-//     // VarList : ParamDec COMMA VarList
-//     //     | ParamDec
-//     //     ;
-//     AssertEq(tree->type, ST_VarList);
-
-//     void first = translate_ParamDec(tree->children[0], ev);
-//     if (tree->count == 3)
-//         first->next = translate_VarList(tree->children[2], ev);
-//     tree->sem = first;
-//     return first;
-// }
-// static void translate_ParamDec(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "ParamDec");
-//     // ParamDec : Specifier VarDec
-//     //     ;
-//     AssertEq(tree->type, ST_ParamDec);
-
-//     void specifier = translate_Specifier(tree->children[0], ev);
-//     if (is_struct_specifier(specifier))
-//     {
-//         if (!resolve_struct_specifier_dec(specifier, ev))
-//         {
-//             error_struct_nodef(tree->first_line, specifier->struct_name);
-//         }
-//     }
-//     AssertIsNull(ev->declare_type);
-//     ev->declare_type = specifier->tp->tp;
-
-//     void vardec = translate_VarDec(tree->children[1], ev);
-//     symbol *existsym = st_findonly(ev->syms, vardec->sym->name);
-//     symbol *existsymall = st_find(ev->syms, vardec->sym->name);
-
-//     if (existsym != NULL)
-//         error_var_redef(vardec->lineno, vardec->sym->name);
-//     else if (existsymall != NULL && type_is_type(existsymall->tp))
-//         error_var_redef(vardec->lineno, vardec->sym->name);
-//     else
-//         st_add(ev->syms, vardec->sym);
-
-//     ev->declare_type = NULL;
-
-//     tree->sem = vardec;
-
-//     return vardec;
 // }
 // static void translate_CompSt(syntax_tree *tree, env *ev)
 // {

@@ -558,12 +558,12 @@ static SES_FunDec *analyse_FunDec(syntax_tree *tree, env *ev)
             len++;
             cur = cur->next;
         }
-        type **args = newarr(type, len);
+        symbol **args = newarr(symbol, len);
         cur = varlist;
         int i = 0;
         while (cur != NULL)
         {
-            args[i] = cur->sym->tp;
+            args[i] = cur->sym;
             i++;
             cur = cur->next;
         }
@@ -1061,7 +1061,7 @@ static SES_Exp *analyse_Exp(syntax_tree *tree, env *ev)
                 int i = 0;
                 while (args != NULL && i < val->tp->argc)
                 {
-                    if (!type_full_eq(args->tp, val->tp->args[i], false))
+                    if (!type_full_eq(args->tp, val->tp->args[i]->tp, false))
                     {
                         error_call_type(args->lineno);
                     }
@@ -1169,8 +1169,8 @@ bool semantics_analyse(syntax_tree *tree)
         st_add(ev->syms, read);
     }
     {
-        type **args = newarr(type, 1);
-        args[0] = new_type_meta(MT_INT);
+        symbol **args = newarr(symbol, 1);
+        args[0] = new_symbol("value", 0,  new_type_meta(MT_INT), SS_DEF);
         type *tpWrite = new_type_func(1, args, new_type_unit());
         symbol *write = new_symbol("write", 0, tpWrite, SS_DEF);
         st_add(ev->syms, write);

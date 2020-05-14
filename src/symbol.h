@@ -48,7 +48,7 @@ typedef struct __type
         struct
         {
             int argc;
-            struct __type **args;
+            struct __symbol **args;
             struct __type *ret;
         };
         struct

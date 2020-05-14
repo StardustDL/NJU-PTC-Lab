@@ -28,7 +28,7 @@ type *new_type_array(type *base, int rank, int *lens)
     return result;
 }
 
-type *new_type_func(int argc, type **args, type *ret)
+type *new_type_func(int argc, symbol **args, type *ret)
 {
     type *result = new_type(TC_FUNC);
     result->argc = argc;
@@ -120,7 +120,7 @@ static void _show_type(type *a, int level)
     case TC_FUNC:
         printf("Func(argc=%d)\n", a->argc);
         for (int i = 0; i < a->argc; i++)
-            _show_type(a->args[i], level + 1);
+            _show_type(a->args[i]->tp, level + 1);
         _show_type(a->ret, level + 1);
         break;
     case TC_STRUCT:
@@ -183,7 +183,7 @@ bool type_full_eq(type *a, type *b, bool strict_arr)
         if (!type_full_eq(a->ret, b->ret, false))
             return false;
         for (int i = 0; i < a->argc; i++)
-            if (!type_full_eq(a->args[i], b->args[i], false))
+            if (!type_full_eq(a->args[i]->tp, b->args[i]->tp, false))
                 return false;
         return true;
     case TC_STRUCT:
