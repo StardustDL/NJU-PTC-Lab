@@ -42,15 +42,6 @@ static void error_func_decconflict(int lineno, char *name) { semantics_error(19,
 
 #pragma region structs
 
-typedef struct
-{
-    symbol_table *syms;
-    type *declare_type;
-    type *ret_type;
-    bool in_struct;
-    bool in_vardec;
-} env;
-
 typedef type *SES_TYPE;
 
 typedef struct
@@ -188,6 +179,7 @@ static SES_TYPE *analyse_TYPE(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "TYPE");
     AssertEq(tree->type, ST_TYPE);
+    tree->ev = ev;
     SES_TYPE *tag = new (SES_TYPE);
     *tag = new_type_meta(*cast(sytd_type, tree->data));
     tree->sem = tag;
@@ -200,6 +192,7 @@ static void analyse_Program(syntax_tree *tree, env *ev)
     //     ;
 
     AssertEq(tree->type, ST_Program);
+    tree->ev = ev;
     analyse_ExtDefList(tree->children[0], ev);
 
     list *cur = ev->syms->table;
@@ -221,6 +214,7 @@ static void analyse_ExtDefList(syntax_tree *tree, env *ev)
     //     ;
 
     AssertEq(tree->type, ST_ExtDefList);
+    tree->ev = ev;
 
     if (tree->count == 2)
     {
@@ -237,6 +231,7 @@ static void analyse_ExtDef(syntax_tree *tree, env *ev)
     //     | Specifier FunDec SEMI
     //     ;
     AssertEq(tree->type, ST_ExtDef);
+    tree->ev = ev;
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
 
@@ -343,6 +338,7 @@ static SES_VarDec *analyse_ExtDecList(syntax_tree *tree, env *ev)
     //     | VarDec COMMA ExtDecList
     //     ;
     AssertEq(tree->type, ST_ExtDecList);
+    tree->ev = ev;
 
     SES_VarDec *first = analyse_VarDec(tree->children[0], ev);
     if (tree->count == 3)
@@ -359,6 +355,7 @@ static SES_Specifier *analyse_Specifier(syntax_tree *tree, env *ev)
     //     | StructSpecifier
     //     ;
     AssertEq(tree->type, ST_Specifier);
+    tree->ev = ev;
     syntax_tree *child = tree->children[0];
     SES_Specifier *tag = NULL;
     switch (child->type)
@@ -388,6 +385,7 @@ static SES_Specifier *analyse_StructSpecifier(syntax_tree *tree, env *ev)
     //     | STRUCT Tag
     //     ;
     AssertEq(tree->type, ST_StructSpecifier);
+    tree->ev = ev;
     SES_Specifier *tag = NULL;
     if (tree->count == 2)
     {
@@ -437,6 +435,7 @@ static SES_Tag *analyse_OptTag(syntax_tree *tree, env *ev)
     //     | /* empty */
     //     ;
     AssertEq(tree->type, ST_OptTag);
+    tree->ev = ev;
     SES_Tag *tag = new (SES_Tag);
     if (tree->count == 0)
     {
@@ -458,6 +457,7 @@ static SES_Tag *analyse_Tag(syntax_tree *tree, env *ev)
     // Tag : ID
     //     ;
     AssertEq(tree->type, ST_Tag);
+    tree->ev = ev;
     SES_Tag *tag = new (SES_Tag);
     *tag = *cast(sytd_id, tree->children[0]->data);
     tree->sem = tag;
@@ -470,6 +470,7 @@ static SES_VarDec *analyse_VarDec(syntax_tree *tree, env *ev)
     //     | VarDec LB INT RB
     //     ;
     AssertEq(tree->type, ST_VarDec);
+    tree->ev = ev;
     AssertNotNull(ev->declare_type);
     bool invardec = ev->in_vardec;
     if (tree->count == 1)
@@ -532,6 +533,7 @@ static SES_FunDec *analyse_FunDec(syntax_tree *tree, env *ev)
     //     | ID LP RP
     //     ;
     AssertEq(tree->type, ST_FunDec);
+    tree->ev = ev;
 
     char *name = *cast(sytd_id, tree->children[0]->data);
     SES_FunDec *tag = new (SES_FunDec);
@@ -581,6 +583,7 @@ static SES_VarDec *analyse_VarList(syntax_tree *tree, env *ev)
     //     | ParamDec
     //     ;
     AssertEq(tree->type, ST_VarList);
+    tree->ev = ev;
 
     SES_VarDec *first = analyse_ParamDec(tree->children[0], ev);
     if (tree->count == 3)
@@ -594,6 +597,7 @@ static SES_VarDec *analyse_ParamDec(syntax_tree *tree, env *ev)
     // ParamDec : Specifier VarDec
     //     ;
     AssertEq(tree->type, ST_ParamDec);
+    tree->ev = ev;
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
     if (is_struct_specifier(specifier))
@@ -629,6 +633,7 @@ static void analyse_CompSt(syntax_tree *tree, env *ev)
     // CompSt : LC DefList StmtList RC
     //     ;
     AssertEq(tree->type, ST_CompSt);
+    tree->ev = ev;
 
     symbol_table *cst = new_symbol_table(ev->syms);
     env *cenv = new (env);
@@ -646,6 +651,7 @@ static void analyse_StmtList(syntax_tree *tree, env *ev)
     //     | /* empty */
     //     ;
     AssertEq(tree->type, ST_StmtList);
+    tree->ev = ev;
 
     if (tree->count > 0)
     {
@@ -664,6 +670,7 @@ static void analyse_Stmt(syntax_tree *tree, env *ev)
     //     | WHILE LP Exp RP Stmt
     //     ;
     AssertEq(tree->type, ST_Stmt);
+    tree->ev = ev;
     switch (tree->children[0]->type)
     {
     case ST_Exp: // Exp SEMI
@@ -711,6 +718,7 @@ static void analyse_DefList(syntax_tree *tree, env *ev)
     //     | /* empty */
     //     ;
     AssertEq(tree->type, ST_DefList);
+    tree->ev = ev;
 
     if (tree->count > 0)
     {
@@ -724,6 +732,7 @@ static void analyse_Def(syntax_tree *tree, env *ev)
     // Def : Specifier DecList SEMI
     //     ;
     AssertEq(tree->type, ST_Def);
+    tree->ev = ev;
 
     SES_Specifier *specifier = analyse_Specifier(tree->children[0], ev);
 
@@ -771,6 +780,7 @@ static SES_VarDec *analyse_DecList(syntax_tree *tree, env *ev)
     //     | Dec COMMA DecList
     //     ;
     AssertEq(tree->type, ST_DecList);
+    tree->ev = ev;
 
     SES_VarDec *first = analyse_Dec(tree->children[0], ev);
     if (tree->count > 1)
@@ -785,6 +795,7 @@ static SES_VarDec *analyse_Dec(syntax_tree *tree, env *ev)
     //     | VarDec ASSIGNOP Exp
     //     ;
     AssertEq(tree->type, ST_Dec);
+    tree->ev = ev;
 
     SES_VarDec *var = analyse_VarDec(tree->children[0], ev);
     if (tree->count > 1)
@@ -801,6 +812,7 @@ static SES_VarDec *analyse_Dec(syntax_tree *tree, env *ev)
 static symbol *get_symbol_by_id(syntax_tree *tree, env *ev)
 {
     AssertEq(tree->type, ST_ID);
+    tree->ev = ev;
     char *name = *cast(sytd_id, tree->data);
     symbol *val = st_find(ev->syms, name);
     return val;
@@ -829,6 +841,7 @@ static SES_Exp *analyse_Exp(syntax_tree *tree, env *ev)
     //     | FLOAT
     //     ;
     AssertEq(tree->type, ST_Exp);
+    tree->ev = ev;
 
     SES_Exp *tag = new (SES_Exp);
 
@@ -1092,6 +1105,7 @@ static SES_Exp *analyse_Exp(syntax_tree *tree, env *ev)
 static SES_Exp *analyse_Args(syntax_tree *tree, env *ev)
 {
     semantics_log(tree->first_line, "%s", "Args");
+    tree->ev = ev;
     // Args : Exp COMMA Args
     //     | Exp
     //     ;

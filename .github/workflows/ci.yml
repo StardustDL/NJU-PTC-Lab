@@ -39,4 +39,4 @@ jobs:
       - name: Test IR
         run: |
           cd test/ir
-          ./run.sh ../../src/parser
+          # ./run.sh ../../src/parser

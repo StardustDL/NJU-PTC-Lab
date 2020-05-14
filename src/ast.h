@@ -67,6 +67,15 @@ typedef metatype_type sytd_type;
 
 typedef char sytd_id[64];
 
+typedef struct
+{
+    symbol_table *syms;
+    type *declare_type;
+    type *ret_type;
+    bool in_struct;
+    bool in_vardec;
+} env;
+
 typedef struct __syntax_tree
 {
     syntax_type type;
@@ -77,6 +86,7 @@ typedef struct __syntax_tree
     int first_line;
     void *data;
     void *sem;
+    env *ev;
 } syntax_tree;
 
 syntax_tree *new_syntax_tree(int type, int first_line, int count, ...);
@@ -103,68 +113,5 @@ typedef struct
     int count;
     void **children;
 } ast;
-
-typedef struct
-{
-    type *tp;
-    union {
-        unsigned int vint;
-        float vfloat;
-    };
-} ast_exp_const;
-
-typedef struct
-{
-    symbol* sym;
-} ast_exp_id;
-
-typedef struct
-{
-    op_type type;
-    void *left;
-    void *right;
-    type *tp;
-} ast_exp_bop;
-
-typedef struct
-{
-    symbol* sym;
-    void** args;
-} ast_exp_call;
-
-typedef struct
-{
-    symbol* sym;
-    int offset;
-} ast_exp_offset;
-
-typedef struct
-{
-    void *exp;
-} ast_return;
-
-typedef struct
-{
-    void *cond;
-    void *body;
-} ast_if;
-
-typedef struct
-{
-    void *cond;
-    void *body;
-} ast_while;
-
-typedef struct
-{
-    symbol *sym;
-    void *init;
-} ast_var;
-
-typedef struct
-{
-    symbol *sym;
-    void* body;
-} ast_func;
 
 #endif
