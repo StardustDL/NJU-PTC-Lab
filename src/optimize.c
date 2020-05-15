@@ -33,13 +33,24 @@ static void optimizeDupLabel(ast *tree)
 
 static void optimizeDupVar(ast *tree)
 {
-    list *vars = tree->vars;
-    for (; vars != NULL; vars = vars->next)
+    for (int i = 0; i + 1 < tree->len; i++)
     {
-        irvar *var = cast(irvar, vars->obj);
-        if (var->usedTime != 1)
-            continue;
-        AssertNotNull(var->usedCode);
+        ircode *code = cast(ircode, tree->codes[i]);
+        ircode *next = cast(ircode, tree->codes[i + 1]);
+        if (code->kind == IR_Assign && next->kind == IR_Assign)
+        {
+            if (code->assign.left->kind == IRO_Variable && code->assign.right->kind == IRO_Constant)
+            {
+                if (code->assign.left->var->usedTime == 1 && code->assign.left->var->usedCode == next)
+                {
+                    if (next->assign.right->kind == IRO_Variable && next->assign.right->var == code->assign.left->var)
+                    {
+                        next->assign.right = code->assign.right;
+                        code->ignore = true;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -176,6 +187,7 @@ int optimize(ast *tree)
 {
     optimizeDeadAssign(tree);
     optimizeDupLabel(tree);
+    optimizeDupVar(tree);
 
     int count = 0;
     for (int i = 0; i < tree->len; i++)
