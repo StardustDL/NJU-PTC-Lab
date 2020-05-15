@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define DCHECK
+
 #ifdef DEBUG
 
 #define printflog(format, ...) \
@@ -45,6 +47,8 @@
 		printflog("[\33[1;31mError\33[0m]\33[1;34m(%s,%d,%s)\33[0m " format "\33[0m\n", \
 				__FILE__, __LINE__, __func__, ## __VA_ARGS__)
 
+#ifdef DCHECK
+
 #define Assert(cond, ...) \
   do { \
     if (!(cond)) { \
@@ -55,6 +59,20 @@
       assert(cond); \
     } \
   } while (0)
+
+#else
+
+#define Assert(cond, ...) \
+  do { \
+    if (!(cond)) { \
+      fflush(stdout); \
+      fprintf(stderr, "\33[1;31m"); \
+      fprintf(stderr, __VA_ARGS__); \
+      fprintf(stderr, "\33[0m\n"); \
+    } \
+  } while (0)
+
+#endif
 
 #define AssertEq(a, b) \
   Assert(a == b, "%s != %s", #a, #b)

@@ -127,7 +127,8 @@ typedef struct
 {
     char name[64];
     bool isref;
-    bool isused;
+    int usedTime;
+    void* usedCode;
 } irvar;
 
 typedef struct
@@ -186,6 +187,7 @@ typedef struct
 {
     int len;
     void **codes;
+    list* vars;
 } ast;
 
 #endif

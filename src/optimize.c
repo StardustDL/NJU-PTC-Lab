@@ -1,6 +1,47 @@
-
 #include "optimize.h"
 #include "object.h"
+#include <string.h>
+#include "debug.h"
+
+static void optimizeDupLabel(ast *tree)
+{
+    for (int i = 0; i < tree->len;)
+    {
+        ircode *code = cast(ircode, tree->codes[i]);
+        switch (code->kind)
+        {
+        case IR_Label:
+        {
+            int j = i + 1;
+            for (; j < tree->len; j++)
+            {
+                ircode *tc = cast(ircode, tree->codes[j]);
+                if (tc->kind != IR_Label)
+                    break;
+                strcpy(tc->label->name, code->label->name);
+                tc->ignore = true;
+            }
+            i = j;
+        }
+        break;
+        default:
+            i++;
+            break;
+        }
+    }
+}
+
+static void optimizeDupVar(ast *tree)
+{
+    list *vars = tree->vars;
+    for (; vars != NULL; vars = vars->next)
+    {
+        irvar *var = cast(irvar, vars->obj);
+        if (var->usedTime != 1)
+            continue;
+        AssertNotNull(var->usedCode);
+    }
+}
 
 static void optimizeDeadAssign(ast *tree)
 {
@@ -15,34 +56,58 @@ static void optimizeDeadAssign(ast *tree)
             break;
         case IR_Assign:
             if (code->assign.left->kind == IRO_Deref)
-                code->assign.left->var->isused = true;
+            {
+                code->assign.left->var->usedTime++;
+                code->assign.left->var->usedCode = code;
+            }
             if (code->assign.right->kind != IRO_Constant)
-                code->assign.right->var->isused = true;
+            {
+                code->assign.right->var->usedTime++;
+                code->assign.right->var->usedCode = code;
+            }
             break;
         case IR_Add:
         case IR_Sub:
         case IR_Mul:
         case IR_Div:
             if (code->bop.op1->kind != IRO_Constant)
-                code->bop.op1->var->isused = true;
+            {
+                code->bop.op1->var->usedTime++;
+                code->bop.op1->var->usedCode = code;
+            }
             if (code->bop.op2->kind != IRO_Constant)
-                code->bop.op2->var->isused = true;
+            {
+                code->bop.op2->var->usedTime++;
+                code->bop.op2->var->usedCode = code;
+            }
             break;
         case IR_Branch:
             if (code->branch.op1->kind != IRO_Constant)
-                code->branch.op1->var->isused = true;
+            {
+                code->branch.op1->var->usedTime++;
+                code->branch.op1->var->usedCode = code;
+            }
             if (code->branch.op2->kind != IRO_Constant)
-                code->branch.op2->var->isused = true;
+            {
+                code->branch.op2->var->usedTime++;
+                code->branch.op2->var->usedCode = code;
+            }
             break;
         case IR_Return:
             if (code->ret->kind != IRO_Constant)
-                code->ret->var->isused = true;
+            {
+                code->ret->var->usedTime++;
+                code->ret->var->usedCode = code;
+            }
             break;
         case IR_Dec:
             break;
         case IR_Arg:
             if (code->arg->kind != IRO_Constant)
-                code->arg->var->isused = true;
+            {
+                code->arg->var->usedTime++;
+                code->arg->var->usedCode = code;
+            }
             break;
         case IR_Call:
             break;
@@ -52,7 +117,10 @@ static void optimizeDeadAssign(ast *tree)
             break;
         case IR_Write:
             if (code->write->kind != IRO_Constant)
-                code->write->var->isused = true;
+            {
+                code->write->var->usedTime++;
+                code->write->var->usedCode = code;
+            }
             break;
         }
     }
@@ -66,7 +134,7 @@ static void optimizeDeadAssign(ast *tree)
         case IR_Func:
             break;
         case IR_Assign:
-            if (code->assign.left->var->isused == false)
+            if (code->assign.left->var->usedTime == 0)
             {
                 code->ignore = true;
             }
@@ -75,7 +143,7 @@ static void optimizeDeadAssign(ast *tree)
         case IR_Sub:
         case IR_Mul:
         case IR_Div:
-            if (code->bop.target->var->isused == false)
+            if (code->bop.target->var->usedTime == 0)
             {
                 code->ignore = true;
             }
@@ -85,7 +153,7 @@ static void optimizeDeadAssign(ast *tree)
         case IR_Return:
             break;
         case IR_Dec:
-            if (code->dec.op->var->isused == false)
+            if (code->dec.op->var->usedTime == 0)
             {
                 code->ignore = true;
             }
@@ -107,6 +175,7 @@ static void optimizeDeadAssign(ast *tree)
 int optimize(ast *tree)
 {
     optimizeDeadAssign(tree);
+    optimizeDupLabel(tree);
 
     int count = 0;
     for (int i = 0; i < tree->len; i++)

@@ -1,4 +1,4 @@
-#define DEBUG
+// #define DEBUG
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -20,6 +20,8 @@ static list *irs = NULL;
 
 static irvar *ignore_var = NULL;
 
+static list *vars = NULL;
+
 #pragma region helper functions
 
 static void push_ircode(ircode *code)
@@ -35,6 +37,7 @@ static irvar *new_var()
     count++;
     irvar *var = new (irvar);
     sprintf(var->name, "t%d", count);
+    vars = list_pushfront(vars, var);
     return var;
 }
 
@@ -1046,6 +1049,7 @@ ast *ir_translate(syntax_tree *tree)
 
     result->len = list_len(irs);
     result->codes = list_revto_arr(irs);
+    result->vars = vars;
 
     int count = optimize(result);
     ir_log(0, "Optimized %d / %d.", count, result->len);
