@@ -17,6 +17,8 @@ void ir_log(int lineno, char *format, ...);
 
 static list *irs = NULL;
 
+static irvar *ignore_var = NULL;
+
 #pragma region helper functions
 
 static void push_ircode(ircode *code)
@@ -388,62 +390,62 @@ static void translate_StmtList(syntax_tree *tree)
 
     if (tree->count > 0)
     {
-        // TODO
-        // translate_Stmt(tree->children[0]);
+        translate_Stmt(tree->children[0]);
         translate_StmtList(tree->children[1]);
     }
 }
-// static void translate_Stmt(syntax_tree *tree)
-// {
-//     ir_log(tree->first_line, "%s", "Stmt");
-//     // Stmt : Exp SEMI
-//     //     | CompSt
-//     //     | RETURN Exp SEMI
-//     //     | IF LP Exp RP Stmt %prec LOWER_THAN_ELSE
-//     //     | IF LP Exp RP Stmt ELSE Stmt
-//     //     | WHILE LP Exp RP Stmt
-//     //     ;
-//     AssertEq(tree->type, ST_Stmt);
-//     switch (tree->children[0]->type)
-//     {
-//     case ST_Exp: // Exp SEMI
-//         translate_Exp(tree->children[0]);
-//         break;
-//     case ST_CompSt: // CompSt
-//         translate_CompSt(tree->children[0]);
-//         break;
-//     case ST_RETURN: // RETURN Exp SEMI
-//     {
-//         AssertNotNull(ev->ret_type);
-//         void exp = translate_Exp(tree->children[1]);
-//         if (!type_full_eq(ev->ret_type, exp->tp, false))
-//             error_return_type(tree->children[1]->first_line);
-//     }
-//     break;
-//     case ST_IF:
-//     {
-//         void exp = translate_Exp(tree->children[2]);
-//         if (!type_can_logic(exp->tp))
-//             error_op_type(tree->children[2]->first_line);
-//         if (tree->count == 7) // IF LP Exp RP Stmt ELSE Stmt
-//         {
-//             translate_Stmt(tree->children[4]);
-//             translate_Stmt(tree->children[6]);
-//         }
-//         else // IF LP Exp RP Stmt
-//             translate_Stmt(tree->children[4]);
-//     }
-//     break;
-//     case ST_WHILE: // WHILE LP Exp RP Stmt
-//     {
-//         void exp = translate_Exp(tree->children[2]);
-//         if (!type_can_logic(exp->tp))
-//             error_op_type(tree->children[2]->first_line);
-//         translate_Stmt(tree->children[4]);
-//     }
-//     break;
-//     }
-// }
+static void translate_Stmt(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "Stmt");
+    // Stmt : Exp SEMI
+    //     | CompSt
+    //     | RETURN Exp SEMI
+    //     | IF LP Exp RP Stmt %prec LOWER_THAN_ELSE
+    //     | IF LP Exp RP Stmt ELSE Stmt
+    //     | WHILE LP Exp RP Stmt
+    //     ;
+    AssertEq(tree->type, ST_Stmt);
+    switch (tree->children[0]->type)
+    {
+    case ST_Exp: // Exp SEMI
+        translate_Exp(tree->children[0], ignore_var);
+        break;
+    case ST_CompSt: // CompSt
+        translate_CompSt(tree->children[0]);
+        break;
+    case ST_RETURN: // RETURN Exp SEMI
+    {
+        irvar *var = new_var();
+        translate_Exp(tree->children[1], var);
+        gen_return(op_var(var));
+    }
+    break;
+    case ST_IF:
+    {
+        // TODO
+        // void exp = translate_Exp(tree->children[2]);
+        // if (!type_can_logic(exp->tp))
+        //     error_op_type(tree->children[2]->first_line);
+        // if (tree->count == 7) // IF LP Exp RP Stmt ELSE Stmt
+        // {
+        //     translate_Stmt(tree->children[4]);
+        //     translate_Stmt(tree->children[6]);
+        // }
+        // else // IF LP Exp RP Stmt
+        //     translate_Stmt(tree->children[4]);
+    }
+    break;
+    case ST_WHILE: // WHILE LP Exp RP Stmt
+    {
+        // TODO
+        // void exp = translate_Exp(tree->children[2]);
+        // if (!type_can_logic(exp->tp))
+        //     error_op_type(tree->children[2]->first_line);
+        // translate_Stmt(tree->children[4]);
+    }
+    break;
+    }
+}
 static void translate_DefList(syntax_tree *tree)
 {
     ir_log(tree->first_line, "%s", "DefList");
@@ -579,8 +581,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         {
         case ST_LP: // LP Exp RP
         {
-            // void exp = translate_Exp(tree->children[1]);
-            // tag->tp = exp->tp;
+            translate_Exp(tree->children[1], target);
         }
         break;
         case ST_ID: // ID LP RP
@@ -634,36 +635,34 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             case ST_AND: // Exp AND Exp, Exp OR Exp
             case ST_OR:
             {
-                // For lator
+                // For later
             }
             break;
             case ST_ASSIGNOP: // Exp ASSIGNOP Exp
             {
-                // tag = new (SES_Exp);
-                // void exp1 = translate_Exp(tree->children[0]);
-                // void exp2 = translate_Exp(tree->children[2]);
+                if (tree->children[0]->count == 1 && tree->children[0]->children[0]->type == ST_ID) // ID = Exp
+                {
+                    symbol *val = get_symbol_by_id(tree->children[0]->children[0], tree->ev);
+                    AssertNotNull(val);
+                    AssertNotNull(val->ir);
+                    irvar *var = cast(irvar, val->ir);
 
-                // bool isrval = true;
-                // if (tree->children[0]->count == 1 && tree->children[0]->children[0]->type == ST_ID)
-                //     isrval = false;
-                // else if (tree->children[0]->count == 4 && tree->children[0]->children[1]->type == ST_LB)
-                //     isrval = false;
-                // else if (tree->children[0]->count == 3 && tree->children[0]->children[1]->type == ST_DOT)
-                //     isrval = false;
-                // if (isrval)
-                // {
-                //     error_assign_rval(tree->first_line);
-                //     tag->tp = new_type_never();
-                // }
-                // else if (!type_full_eq(exp1->tp, exp2->tp, false))
-                // {
-                //     error_assign_type(tree->first_line);
-                //     tag->tp = new_type_never();
-                // }
-                // else
-                // {
-                //     tag->tp = exp1->tp;
-                // }
+                    translate_Exp(tree->children[2], var);
+
+                    gen_assign(op_var(target), op_var(var));
+                }
+                else if (tree->children[0]->count == 4 && tree->children[0]->children[1]->type == ST_LB) // E[index] = Exp
+                {
+                    // TODO
+                }
+                else if (tree->children[0]->count == 3 && tree->children[0]->children[1]->type == ST_DOT) // E.mem = Exp
+                {
+                    // TODO
+                }
+                else
+                {
+                    panic("unexpect left val");
+                }
             }
             break;
             default: // PLUS, MINUS, ...
@@ -809,6 +808,7 @@ void ir_prepare()
 {
     ir_is_passed = true;
     irs = NULL;
+    ignore_var = new_var();
 }
 
 ast *ir_translate(syntax_tree *tree)
