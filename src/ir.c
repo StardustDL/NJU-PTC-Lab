@@ -451,7 +451,7 @@ static void translate_Stmt(syntax_tree *tree)
     {
         irvar *var = new_var();
         translate_Exp(tree->children[1], var);
-        gen_return(op_var(var));
+        gen_return(op_rval(var));
     }
     break;
     case ST_IF:
@@ -630,6 +630,16 @@ static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *fals
     gen_branch(RT_NE, op_rval(v1), op_const(0), true_label);
     gen_goto(false_label);
 }
+static void gen_arr_copy(irvar *lo, irvar *ro, int sz)
+{
+    irvar *lt = new_var(), *rt = new_var();
+    for (int i = 0; i < sz; i += 4)
+    {
+        gen_add(op_var(lt), op_var(lo), op_const(i));
+        gen_add(op_var(rt), op_var(ro), op_const(i));
+        gen_assign(op_deref(lt), op_deref(rt));
+    }
+}
 static void translate_Exp(syntax_tree *tree, irvar *target)
 {
     ir_log(tree->first_line, "%s", "Exp");
@@ -784,6 +794,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
                     translate_Exp(tree->children[2], temp);
 
                     SES_Exp *leftSem = cast(SES_Exp, tree->children[0]->sem);
+                    SES_Exp *rightSem = cast(SES_Exp, tree->children[2]->sem);
                     switch (leftSem->tp->cls)
                     {
                     case TC_META: // INT assign
@@ -793,11 +804,19 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
                     }
                     break;
                     case TC_STRUCT: //Struct assign
-                        //TODO;
+                        panic("No struct direct assign support");
                         break;
                     case TC_ARRAY: //Array assign
-                        //TODO
-                        break;
+                    {
+                        AssertEq(var->isref, true);
+                        AssertEq(temp->isref, true);
+                        int sz = type_sizeof(leftSem->tp);
+                        int sz2 = type_sizeof(rightSem->tp);
+                        gen_arr_copy(var, temp, sz < sz2 ? sz : sz2);
+                        gen_assign(op_var(target), op_var(temp));
+                        target->isref = true;
+                    }
+                    break;
                     }
                 }
                 else if (tree->children[0]->count == 4 && tree->children[0]->children[1]->type == ST_LB) // E[index] = Exp
@@ -808,19 +827,28 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
                     AssertEq(offset->isref, true);
                     translate_Exp(tree->children[2], value);
                     SES_Exp *leftSem = cast(SES_Exp, tree->children[0]->sem);
+                    SES_Exp *rightSem = cast(SES_Exp, tree->children[2]->sem);
                     switch (leftSem->tp->cls)
                     {
                     case TC_META: // INT assign
                     {
                         gen_assign(op_deref(offset), op_rval(value));
+                        gen_assign(op_var(target), op_rval(value));
                     }
                     break;
                     case TC_STRUCT: //Struct assign
-                        //TODO;
+                        panic("No struct direct assign support");
                         break;
                     case TC_ARRAY: //Array assign
-                        //TODO
-                        break;
+                    {
+                        AssertEq(value->isref, true);
+                        int sz = type_sizeof(leftSem->tp);
+                        int sz2 = type_sizeof(rightSem->tp);
+                        gen_arr_copy(offset, value, sz < sz2 ? sz : sz2);
+                        gen_assign(op_var(target), op_var(value));
+                        target->isref = true;
+                    }
+                    break;
                     }
                 }
                 else if (tree->children[0]->count == 3 && tree->children[0]->children[1]->type == ST_DOT) // E.mem = Exp
@@ -836,13 +864,14 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
                     case TC_META: // INT assign
                     {
                         gen_assign(op_deref(offset), op_rval(value));
+                        gen_assign(op_var(target), op_rval(value));
                     }
                     break;
                     case TC_STRUCT: //Struct assign
-                        //TODO;
+                        TODO();
                         break;
                     case TC_ARRAY: //Array assign
-                        //TODO
+                        TODO();
                         break;
                     }
                 }
