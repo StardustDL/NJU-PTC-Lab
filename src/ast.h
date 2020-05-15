@@ -127,6 +127,7 @@ typedef struct
 {
     char name[64];
     bool isref;
+    bool isused;
 } irvar;
 
 typedef struct
@@ -146,6 +147,7 @@ typedef struct
 typedef struct
 {
     irc_type kind;
+    bool ignore;
     union {
         struct
         {

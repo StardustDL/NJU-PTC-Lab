@@ -1,4 +1,4 @@
-// #define DEBUG
+#define DEBUG
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -12,6 +12,7 @@
 #include "object.h"
 #include "debug.h"
 #include "semantics.h"
+#include "optimize.h"
 
 void ir_log(int lineno, char *format, ...);
 
@@ -1045,6 +1046,10 @@ ast *ir_translate(syntax_tree *tree)
 
     result->len = list_len(irs);
     result->codes = list_revto_arr(irs);
+
+    int count = optimize(result);
+    ir_log(0, "Optimized %d / %d.", count, result->len);
+
     return result;
 }
 
@@ -1078,6 +1083,8 @@ void ir_linearise(ast *tree, FILE *file)
     for (int i = 0; i < tree->len; i++)
     {
         ircode *code = cast(ircode, tree->codes[i]);
+        if (code->ignore)
+            continue;
         switch (code->kind)
         {
         case IR_Label:

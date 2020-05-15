@@ -60,7 +60,7 @@ for fcmm in ./tests/*.cmm; do
   cp $fcmm ./workdir/a.cmm
   cp ${fcmm%.cmm}.json ./workdir/a.json
 
-  if $PREFIX $RUN ./workdir/a.cmm  ./workdir/a.ir 2>&1; then
+  if $PREFIX $RUN ./workdir/a.cmm  ./workdir/a.ir --ir 2>&1; then
       true; #do nothing
   else
       report_error "RE or TLE"
