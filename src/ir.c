@@ -427,8 +427,8 @@ static void translate_Stmt(syntax_tree *tree)
             irlabel *lt = new_label(), *lf = new_label(), *le = new_label();
             translate_Cond(tree->children[2], lt, lf);
             gen_label(lt);
-            gen_goto(le);
             translate_Stmt(tree->children[4]);
+            gen_goto(le);
             gen_label(lf);
             translate_Stmt(tree->children[6]);
             gen_label(le);
@@ -445,11 +445,13 @@ static void translate_Stmt(syntax_tree *tree)
     break;
     case ST_WHILE: // WHILE LP Exp RP Stmt
     {
-        // TODO
-        // void exp = translate_Exp(tree->children[2]);
-        // if (!type_can_logic(exp->tp))
-        //     error_op_type(tree->children[2]->first_line);
-        // translate_Stmt(tree->children[4]);
+        irlabel *lt = new_label(), *lf = new_label(), *ls = new_label();
+        gen_label(ls);
+        translate_Cond(tree->children[2], lt, lf);
+        gen_label(lt);
+        translate_Stmt(tree->children[4]);
+        gen_goto(ls);
+        gen_label(lf);
     }
     break;
     }
