@@ -1,5 +1,4 @@
 // #define DEBUG
-#define OP_LOG
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -58,50 +57,6 @@ static irlabel *new_label()
     irlabel *l = new (irlabel);
     sprintf(l->name, "l%d", count);
     return l;
-}
-
-static irop *op_var(irvar *var)
-{
-    irop *op = new (irop);
-    op->kind = IRO_Variable;
-    op->var = var;
-    return op;
-}
-
-static irop *op_ref(irvar *var)
-{
-    irop *op = new (irop);
-    op->kind = IRO_Ref;
-    op->var = var;
-    return op;
-}
-
-static irop *op_deref(irvar *var)
-{
-    irop *op = new (irop);
-    op->kind = IRO_Deref;
-    op->var = var;
-    return op;
-}
-
-static irop *op_const(int value)
-{
-    irop *op = new (irop);
-    op->kind = IRO_Constant;
-    op->value = value;
-    return op;
-}
-
-static irop *op_rval(irvar *var)
-{
-    if (var->isref)
-    {
-        return op_deref(var);
-    }
-    else
-    {
-        return op_var(var);
-    }
 }
 
 static void gen_label(irlabel *label)
@@ -1056,10 +1011,6 @@ ast *ir_translate(syntax_tree *tree)
     result->vars = vars;
 
     int count = optimize(result);
-
-#ifdef OP_LOG
-    fprintf(stderr, "Optimized %d / %d.\n", count, result->len);
-#endif
 
     return result;
 }

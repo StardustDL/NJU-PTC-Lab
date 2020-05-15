@@ -6,6 +6,50 @@
 #include "object.h"
 #include "debug.h"
 
+irop *op_var(irvar *var)
+{
+    irop *op = new (irop);
+    op->kind = IRO_Variable;
+    op->var = var;
+    return op;
+}
+
+irop *op_ref(irvar *var)
+{
+    irop *op = new (irop);
+    op->kind = IRO_Ref;
+    op->var = var;
+    return op;
+}
+
+irop *op_deref(irvar *var)
+{
+    irop *op = new (irop);
+    op->kind = IRO_Deref;
+    op->var = var;
+    return op;
+}
+
+irop *op_const(int value)
+{
+    irop *op = new (irop);
+    op->kind = IRO_Constant;
+    op->value = value;
+    return op;
+}
+
+irop *op_rval(irvar *var)
+{
+    if (var->isref)
+    {
+        return op_deref(var);
+    }
+    else
+    {
+        return op_var(var);
+    }
+}
+
 syntax_tree *new_syntax_tree(int type, int first_line, int count, ...)
 {
     Assert(count >= 0, "syntax_tree children count < 0");

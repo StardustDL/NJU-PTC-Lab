@@ -146,6 +146,16 @@ typedef struct
     };
 } irop;
 
+irop *op_var(irvar *var);
+
+irop *op_ref(irvar *var);
+
+irop *op_deref(irvar *var);
+
+irop *op_const(int value);
+
+irop *op_rval(irvar *var);
+
 typedef struct
 {
     irc_type kind;
