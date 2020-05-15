@@ -532,27 +532,37 @@ static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *fals
         {
         case ST_NOT: // NOT Exp
         {
+            translate_Cond(tree->children[1], false_label, true_label);
         }
-        break;
-        default:
-            panic("unexpect cond exp");
-            break;
+            return;
         }
     }
     break;
     case 3:
     {
+        if (tree->children[0]->type == ST_LP) // LP Exp RP
+        {
+            translate_Cond(tree->children[1], true_label, false_label);
+            return;
+        }
         switch (tree->children[1]->type)
         {
         case ST_AND: // Exp AND Exp
         {
+            irlabel *sl = new_label();
+            translate_Cond(tree->children[0], sl, false_label);
+            gen_label(sl);
+            translate_Cond(tree->children[2], true_label, false_label);
         }
-        break;
+            return;
         case ST_OR: // Exp OR Exp
         {
-            // For later
+            irlabel *sl = new_label();
+            translate_Cond(tree->children[0], true_label, sl);
+            gen_label(sl);
+            translate_Cond(tree->children[2], true_label, false_label);
         }
-        break;
+            return;
         case ST_RELOP:
         {
             irvar *v1 = new_var(), *v2 = new_var();
@@ -563,15 +573,17 @@ static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *fals
             gen_branch(rt, op_var(v1), op_var(v2), true_label);
             gen_goto(false_label);
         }
-        break;
-        default:
-            panic("unexpect cond exp");
+            return;
         }
     }
     break;
-    default:
-        panic("unexpect cond exp");
     }
+    // default exp
+    panic("");
+    irvar *v1 = new_var();
+    translate_Exp(tree, v1);
+    gen_branch(RT_NE, op_var(v1), op_const(0), true_label);
+    gen_goto(false_label);
 }
 static void translate_Exp(syntax_tree *tree, irvar *target)
 {
@@ -989,7 +1001,7 @@ void ir_linearise(ast *tree, FILE *file)
             fprintf(file, "\n");
             break;
         case IR_Goto:
-            fprintf(file, "GOTO %s :\n", code->label->name);
+            fprintf(file, "GOTO %s\n", code->label->name);
             break;
         case IR_Branch:
             fprintf(file, "IF ");
