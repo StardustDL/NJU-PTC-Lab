@@ -897,7 +897,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             else
             {
                 void **paramArr = list_revto_arr(params);
-                for (int i = val->tp->argc - 1; i >= 0; i--)
+                for (int i = 0; i < val->tp->argc; i++)
                 {
                     irvar *p = cast(irvar, paramArr[i]);
                     if (val->tp->args[i]->tp->cls == TC_ARRAY || val->tp->args[i]->tp->cls == TC_STRUCT)
