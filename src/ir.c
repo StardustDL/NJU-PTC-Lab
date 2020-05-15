@@ -542,16 +542,11 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         break;
         case ST_ID: // ID
         {
-            // symbol *val = get_symbol_by_id(tree->children[0]);
-            // if (val == NULL)
-            // {
-            //     error_var_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
-            //     tag->tp = new_type_never();
-            // }
-            // else
-            // {
-            //     tag->tp = val->tp;
-            // }
+            symbol *val = get_symbol_by_id(tree->children[0], tree->ev);
+            AssertNotNull(val);
+            AssertNotNull(val->ir);
+            irvar *var = cast(irvar, val->ir);
+            gen_assign(op_var(target), op_var(var));
         }
         break;
         }

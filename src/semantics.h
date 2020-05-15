@@ -36,6 +36,8 @@ typedef struct __SES_VarDec
     struct __SES_VarDec *next;
 } SES_VarDec;
 
+symbol *get_symbol_by_id(syntax_tree *tree, env *ev);
+
 void semantics_prepare();
 
 bool semantics_analyse(syntax_tree *tree);

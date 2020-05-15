@@ -777,7 +777,7 @@ static SES_VarDec *analyse_Dec(syntax_tree *tree, env *ev)
     return var;
 }
 
-static symbol *get_symbol_by_id(syntax_tree *tree, env *ev)
+symbol *get_symbol_by_id(syntax_tree *tree, env *ev)
 {
     AssertEq(tree->type, ST_ID);
     tree->ev = ev;
