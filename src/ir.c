@@ -292,6 +292,19 @@ static void translate_ExtDef(syntax_tree *tree)
         irlabel *label = new_named_label(sym->name);
         sym->ir = label;
         gen_func(label);
+        int i = 0;
+        env *subev = tree->children[2]->ev;
+        while (i < sym->tp->argc)
+        {
+            char *paramname = sym->tp->args[i]->name;
+            symbol *param = st_findonly(subev->syms, paramname);
+            AssertNotNull(param);
+            irvar *var = new_var();
+            param->ir = var;
+
+            gen_param(op_var(var));
+            i++;
+        }
 
         if (tree->children[2]->type == ST_CompSt) // function definition
         {
