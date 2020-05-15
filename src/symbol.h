@@ -74,8 +74,8 @@ typedef struct __symbol
     char name[64];
     int lineno;
     type *tp;
-    char** names;
     symbol_state state;
+    void* ir;
 } symbol;
 
 typedef struct __symbol_table

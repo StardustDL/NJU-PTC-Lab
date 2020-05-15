@@ -42,39 +42,6 @@ static void error_func_decconflict(int lineno, char *name) { semantics_error(19,
 
 #pragma region structs
 
-typedef type *SES_TYPE;
-
-typedef struct
-{
-    type *tp;
-    char *struct_name;
-} SES_Specifier;
-
-typedef struct
-{
-    symbol *sym;
-    int lineno;
-    env *ev;
-} SES_FunDec;
-
-typedef char *SES_Tag;
-
-typedef struct __SES_Exp
-{
-    type *tp;
-    int lineno;
-    struct __SES_Exp *next;
-} SES_Exp;
-
-typedef struct __SES_VarDec
-{
-    symbol *sym;
-    bool hasinit;
-    int lineno;
-    list *lens;
-    struct __SES_VarDec *next;
-} SES_VarDec;
-
 static bool is_struct_specifier(SES_Specifier *sp)
 {
     return sp->struct_name != NULL;

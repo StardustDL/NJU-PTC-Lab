@@ -9,10 +9,13 @@
 #include "common.h"
 #include "object.h"
 #include "debug.h"
+#include "semantics.h"
 
 void ir_log(int lineno, char *format, ...);
 
 static list *irs = NULL;
+
+#pragma region helper functions
 
 static void push_ircode(ircode *code)
 {
@@ -28,6 +31,13 @@ static irvar *new_var()
     irvar *var = new (irvar);
     sprintf(var->name, "t%d", count);
     return var;
+}
+
+static irlabel *new_named_label(const char *name)
+{
+    irlabel *l = new (irlabel);
+    strcpy(l->name, name);
+    return l;
 }
 
 static irlabel *new_label()
@@ -214,172 +224,88 @@ static void gen_write(irop *write)
     push_ircode(c);
 }
 
-#pragma region
-static void translate_Program(syntax_tree *tree, env *ev);
-// static void translate_ExtDefList(syntax_tree *tree, env *ev);
-// static void translate_ExtDef(syntax_tree *tree, env *ev);
-// static void translate_ExtDecList(syntax_tree *tree, env *ev);
-// static void translate_VarDec(syntax_tree *tree, env *ev);
-// static void translate_CompSt(syntax_tree *tree, env *ev);
-// static void translate_StmtList(syntax_tree *tree, env *ev);
-// static void translate_Stmt(syntax_tree *tree, env *ev);
-// static void translate_DefList(syntax_tree *tree, env *ev);
-// static void translate_Def(syntax_tree *tree, env *ev);
-// static void translate_DecList(syntax_tree *tree, env *ev);
-// static void translate_Dec(syntax_tree *tree, env *ev);
-// static void translate_Exp(syntax_tree *tree, env *ev);
-// static void translate_Args(syntax_tree *tree, env *ev);
 #pragma endregion
 
-static void translate_Program(syntax_tree *tree, env *ev)
+#pragma region
+static void translate_Program(syntax_tree *tree);
+static void translate_ExtDefList(syntax_tree *tree);
+static void translate_ExtDef(syntax_tree *tree);
+static void translate_VarDec(syntax_tree *tree);
+static void translate_CompSt(syntax_tree *tree);
+static void translate_StmtList(syntax_tree *tree);
+static void translate_Stmt(syntax_tree *tree);
+static void translate_DefList(syntax_tree *tree);
+static void translate_Def(syntax_tree *tree);
+static void translate_DecList(syntax_tree *tree);
+static void translate_Dec(syntax_tree *tree);
+static void translate_Exp(syntax_tree *tree);
+static void translate_Args(syntax_tree *tree);
+#pragma endregion
+
+static void translate_Program(syntax_tree *tree)
 {
     ir_log(tree->first_line, "%s", "Program");
     // Program : ExtDefList
     //     ;
 
     AssertEq(tree->type, ST_Program);
-    // translate_ExtDefList(tree->children[0], ev);
+    translate_ExtDefList(tree->children[0]);
 }
-// static void translate_ExtDefList(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "ExtDefList");
-//     // ExtDefList : ExtDef ExtDefList
-//     //     | /* empty */
-//     //     ;
+static void translate_ExtDefList(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "ExtDefList");
+    // ExtDefList : ExtDef ExtDefList
+    //     | /* empty */
+    //     ;
 
-//     AssertEq(tree->type, ST_ExtDefList);
+    AssertEq(tree->type, ST_ExtDefList);
 
-//     if (tree->count == 2)
-//     {
-//         translate_ExtDef(tree->children[0], ev);
-//         translate_ExtDefList(tree->children[1], ev);
-//     }
-// }
-// static void translate_ExtDef(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "ExtDef");
-//     // ExtDef : Specifier ExtDecList SEMI
-//     //     | Specifier SEMI
-//     //     | Specifier FunDec CompSt
-//     //     | Specifier FunDec SEMI
-//     //     ;
-//     AssertEq(tree->type, ST_ExtDef);
+    if (tree->count == 2)
+    {
+        translate_ExtDef(tree->children[0]);
+        translate_ExtDefList(tree->children[1]);
+    }
+}
+static void translate_ExtDef(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "ExtDef");
+    // ExtDef : Specifier ExtDecList SEMI
+    //     | Specifier SEMI
+    //     | Specifier FunDec CompSt
+    //     | Specifier FunDec SEMI
+    //     ;
+    AssertEq(tree->type, ST_ExtDef);
 
-//     void specifier = translate_Specifier(tree->children[0], ev);
+    switch (tree->children[1]->type)
+    {
+    case ST_ExtDecList:
+    {
+        panic("Don't support gloabl var");
+    }
+    break;
+    case ST_FunDec:
+    {
+        SES_FunDec *sf = cast(SES_FunDec, tree->children[1]->sem);
+        symbol *sym = st_find(tree->ev->syms, sf->sym->name);
+        AssertNotNull(sym);
 
-//     if (is_struct_specifier(specifier))
-//     {
-//         check_create_struct_specifier(specifier, ev, tree->first_line);
-//     }
+        irlabel *label = new_named_label(sym->name);
+        sym->ir = label;
+        gen_func(label);
 
-//     switch (tree->children[1]->type)
-//     {
-//     case ST_ExtDecList:
-//     {
-//         if (is_struct_specifier(specifier))
-//         {
-//             if (!resolve_struct_specifier_dec(specifier, ev))
-//             {
-//                 error_struct_nodef(tree->first_line, specifier->struct_name);
-//             }
-//         }
-
-//         ev->declare_type = specifier->tp->tp;
-//         void decs = translate_ExtDecList(tree->children[1], ev);
-//         while (decs != NULL)
-//         {
-//             symbol *existsym = st_findonly(ev->syms, decs->sym->name);
-//             symbol *existsymall = st_find(ev->syms, decs->sym->name);
-//             if (existsym != NULL)
-//             {
-//                 error_var_redef(decs->lineno, decs->sym->name);
-//             }
-//             else if (existsymall != NULL && type_is_type(existsymall->tp))
-//             {
-//                 error_var_redef(decs->lineno, decs->sym->name);
-//             }
-//             else
-//             {
-//                 st_add(ev->syms, decs->sym);
-//             }
-//             decs = decs->next;
-//         }
-//         ev->declare_type = NULL;
-//     }
-//     break;
-//     case ST_FunDec:
-//     {
-//         if (is_struct_specifier(specifier))
-//         {
-//             if (!resolve_struct_specifier_dec(specifier, ev))
-//             {
-//                 error_struct_nodef(tree->first_line, specifier->struct_name);
-//             }
-//         }
-
-//         ev->declare_type = specifier->tp->tp;
-//         void sf = translate_FunDec(tree->children[1], ev);
-//         if (tree->children[2]->type == ST_CompSt) // function definition
-//         {
-//             sf->sym->state = SS_DEF; // allow recusion
-//             env *funcev = sf->ev;
-//             funcev->ret_type = specifier->tp->tp;
-//             translate_CompSt(tree->children[2], funcev);
-//             funcev->ret_type = NULL;
-//         }
-//         else if (tree->children[2]->type == ST_SEMI) // function declare
-//         {
-//             sf->sym->state = SS_DEC;
-//         }
-//         symbol *existsym = st_findonly(ev->syms, sf->sym->name);
-//         int lineno = tree->children[1]->first_line;
-//         if (existsym != NULL)
-//         {
-//             if (existsym->tp->cls == TC_FUNC)
-//             {
-//                 if (existsym->state == SS_DEF)
-//                 {
-//                     error_func_redef(lineno, sf->sym->name);
-//                 }
-//                 else if (!type_full_eq(existsym->tp, sf->sym->tp, false))
-//                 {
-//                     error_func_decconflict(lineno, sf->sym->name);
-//                 }
-//                 else if (sf->sym->state == SS_DEF)
-//                 {
-//                     existsym->state = SS_DEF;
-//                 }
-//             }
-//             else
-//             {
-//                 error_func_redef(lineno, sf->sym->name);
-//             }
-//         }
-//         else
-//         {
-//             st_add(ev->syms, sf->sym);
-//         }
-//     }
-//     break;
-//     }
-// }
-// static void translate_ExtDecList(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "ExtDecList");
-//     // ExtDecList : VarDec
-//     //     | VarDec COMMA ExtDecList
-//     //     ;
-//     AssertEq(tree->type, ST_ExtDecList);
-
-//     void first = translate_VarDec(tree->children[0], ev);
-//     if (tree->count == 3)
-//     {
-//         first->next = translate_ExtDecList(tree->children[2], ev);
-//     }
-//     tree->sem = first;
-//     return first;
-// }
-// static void translate_VarDec(syntax_tree *tree, env *ev)
+        if (tree->children[2]->type == ST_CompSt) // function definition
+        {
+            translate_CompSt(tree->children[2]);
+        }
+        else if (tree->children[2]->type == ST_SEMI) // function declare
+        {
+            panic("Don't support functioin declare");
+        }
+    }
+    break;
+    }
+}
+// static void translate_VarDec(syntax_tree *tree)
 // {
 //     ir_log(tree->first_line, "%s", "VarDec");
 //     // VarDec : ID
@@ -398,7 +324,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //         }
 //         else
 //         {
-//             tag->sym = new_symbol(name, tree->first_line, ev->declare_type, SS_DEC);
+//             tag->sym = new_symbol(name, tree->first_line->declare_type, SS_DEC);
 //         }
 //         tag->lineno = tree->first_line;
 //         tree->sem = tag;
@@ -407,7 +333,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     else
 //     {
 //         ev->in_vardec = true;
-//         void subvar = translate_VarDec(tree->children[0], ev);
+//         void subvar = translate_VarDec(tree->children[0]);
 //         ev->in_vardec = invardec;
 //         subvar->lens = list_pushfront(subvar->lens, cast(sytd_int, tree->children[2]->data));
 //         subvar->lineno = tree->first_line;
@@ -440,37 +366,32 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     }
 //     panic("unexpect");
 // }
-// static void translate_CompSt(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "CompSt");
-//     // CompSt : LC DefList StmtList RC
-//     //     ;
-//     AssertEq(tree->type, ST_CompSt);
+static void translate_CompSt(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "CompSt");
+    // CompSt : LC DefList StmtList RC
+    //     ;
+    AssertEq(tree->type, ST_CompSt);
 
-//     symbol_table *cst = new_symbol_table(ev->syms);
-//     env *cenv = new (env);
-//     cenv->ret_type = ev->ret_type;
-//     cenv->syms = cst;
+    translate_DefList(tree->children[1]);
 
-//     translate_DefList(tree->children[1], cenv);
+    translate_StmtList(tree->children[2]);
+}
+static void translate_StmtList(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "StmtList");
+    // StmtList : Stmt StmtList
+    //     | /* empty */
+    //     ;
+    AssertEq(tree->type, ST_StmtList);
 
-//     translate_StmtList(tree->children[2], cenv);
-// }
-// static void translate_StmtList(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "StmtList");
-//     // StmtList : Stmt StmtList
-//     //     | /* empty */
-//     //     ;
-//     AssertEq(tree->type, ST_StmtList);
-
-//     if (tree->count > 0)
-//     {
-//         translate_Stmt(tree->children[0], ev);
-//         translate_StmtList(tree->children[1], ev);
-//     }
-// }
-// static void translate_Stmt(syntax_tree *tree, env *ev)
+    if (tree->count > 0)
+    {
+        // translate_Stmt(tree->children[0]);
+        translate_StmtList(tree->children[1]);
+    }
+}
+// static void translate_Stmt(syntax_tree *tree)
 // {
 //     ir_log(tree->first_line, "%s", "Stmt");
 //     // Stmt : Exp SEMI
@@ -484,75 +405,75 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     switch (tree->children[0]->type)
 //     {
 //     case ST_Exp: // Exp SEMI
-//         translate_Exp(tree->children[0], ev);
+//         translate_Exp(tree->children[0]);
 //         break;
 //     case ST_CompSt: // CompSt
-//         translate_CompSt(tree->children[0], ev);
+//         translate_CompSt(tree->children[0]);
 //         break;
 //     case ST_RETURN: // RETURN Exp SEMI
 //     {
 //         AssertNotNull(ev->ret_type);
-//         void exp = translate_Exp(tree->children[1], ev);
+//         void exp = translate_Exp(tree->children[1]);
 //         if (!type_full_eq(ev->ret_type, exp->tp, false))
 //             error_return_type(tree->children[1]->first_line);
 //     }
 //     break;
 //     case ST_IF:
 //     {
-//         void exp = translate_Exp(tree->children[2], ev);
+//         void exp = translate_Exp(tree->children[2]);
 //         if (!type_can_logic(exp->tp))
 //             error_op_type(tree->children[2]->first_line);
 //         if (tree->count == 7) // IF LP Exp RP Stmt ELSE Stmt
 //         {
-//             translate_Stmt(tree->children[4], ev);
-//             translate_Stmt(tree->children[6], ev);
+//             translate_Stmt(tree->children[4]);
+//             translate_Stmt(tree->children[6]);
 //         }
 //         else // IF LP Exp RP Stmt
-//             translate_Stmt(tree->children[4], ev);
+//             translate_Stmt(tree->children[4]);
 //     }
 //     break;
 //     case ST_WHILE: // WHILE LP Exp RP Stmt
 //     {
-//         void exp = translate_Exp(tree->children[2], ev);
+//         void exp = translate_Exp(tree->children[2]);
 //         if (!type_can_logic(exp->tp))
 //             error_op_type(tree->children[2]->first_line);
-//         translate_Stmt(tree->children[4], ev);
+//         translate_Stmt(tree->children[4]);
 //     }
 //     break;
 //     }
 // }
-// static void translate_DefList(syntax_tree *tree, env *ev)
-// {
-//     ir_log(tree->first_line, "%s", "DefList");
-//     // DefList : Def DefList
-//     //     | /* empty */
-//     //     ;
-//     AssertEq(tree->type, ST_DefList);
+static void translate_DefList(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "DefList");
+    // DefList : Def DefList
+    //     | /* empty */
+    //     ;
+    AssertEq(tree->type, ST_DefList);
 
-//     if (tree->count > 0)
-//     {
-//         translate_Def(tree->children[0], ev);
-//         translate_DefList(tree->children[1], ev);
-//     }
-// }
-// static void translate_Def(syntax_tree *tree, env *ev)
+    if (tree->count > 0)
+    {
+        // translate_Def(tree->children[0]);
+        translate_DefList(tree->children[1]);
+    }
+}
+// static void translate_Def(syntax_tree *tree)
 // {
 //     ir_log(tree->first_line, "%s", "Def");
 //     // Def : Specifier DecList SEMI
 //     //     ;
 //     AssertEq(tree->type, ST_Def);
 
-//     void specifier = translate_Specifier(tree->children[0], ev);
+//     void specifier = translate_Specifier(tree->children[0]);
 
 //     if (is_struct_specifier(specifier))
 //     {
-//         check_create_struct_specifier(specifier, ev, tree->first_line);
+//         check_create_struct_specifier(specifier, tree->first_line);
 
-//         if (!resolve_struct_specifier_dec(specifier, ev))
+//         if (!resolve_struct_specifier_dec(specifier))
 //             error_struct_nodef(tree->first_line, specifier->struct_name);
 //     }
 //     ev->declare_type = specifier->tp->tp;
-//     void decs = translate_DecList(tree->children[1], ev);
+//     void decs = translate_DecList(tree->children[1]);
 //     while (decs != NULL)
 //     {
 //         symbol *existsym = st_findonly(ev->syms, decs->sym->name);
@@ -581,7 +502,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     }
 //     ev->declare_type = NULL;
 // }
-// static void translate_DecList(syntax_tree *tree, env *ev)
+// static void translate_DecList(syntax_tree *tree)
 // {
 //     ir_log(tree->first_line, "%s", "DecList");
 //     // DecList : Dec
@@ -589,13 +510,13 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     //     ;
 //     AssertEq(tree->type, ST_DecList);
 
-//     void first = translate_Dec(tree->children[0], ev);
+//     void first = translate_Dec(tree->children[0]);
 //     if (tree->count > 1)
-//         first->next = translate_DecList(tree->children[2], ev);
+//         first->next = translate_DecList(tree->children[2]);
 //     tree->sem = first;
 //     return first;
 // }
-// static void translate_Dec(syntax_tree *tree, env *ev)
+// static void translate_Dec(syntax_tree *tree)
 // {
 //     ir_log(tree->first_line, "%s", "Dec");
 //     // Dec : VarDec
@@ -603,11 +524,11 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     //     ;
 //     AssertEq(tree->type, ST_Dec);
 
-//     void var = translate_VarDec(tree->children[0], ev);
+//     void var = translate_VarDec(tree->children[0]);
 //     if (tree->count > 1)
 //     {
 //         var->hasinit = true;
-//         void exp = translate_Exp(tree->children[2], ev);
+//         void exp = translate_Exp(tree->children[2]);
 //         if (!type_full_eq(var->sym->tp, exp->tp, false))
 //             error_assign_type(tree->first_line);
 //     }
@@ -615,7 +536,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     return var;
 // }
 
-// static void translate_Exp(syntax_tree *tree, env *ev)
+// static void translate_Exp(syntax_tree *tree)
 // {
 //     ir_log(tree->first_line, "%s", "Exp");
 //     // Exp : Exp ASSIGNOP Exp
@@ -658,7 +579,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //         break;
 //         case ST_ID: // ID
 //         {
-//             symbol *val = get_symbol_by_id(tree->children[0], ev);
+//             symbol *val = get_symbol_by_id(tree->children[0]);
 //             if (val == NULL)
 //             {
 //                 error_var_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
@@ -674,7 +595,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //         break;
 //     case 2:
 //     {
-//         void exp = translate_Exp(tree->children[1], ev);
+//         void exp = translate_Exp(tree->children[1]);
 //         switch (tree->children[0]->type)
 //         {
 //         case ST_MINUS: // MINUS Exp
@@ -701,13 +622,13 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //         {
 //         case ST_LP: // LP Exp RP
 //         {
-//             void exp = translate_Exp(tree->children[1], ev);
+//             void exp = translate_Exp(tree->children[1]);
 //             tag->tp = exp->tp;
 //         }
 //         break;
 //         case ST_ID: // ID LP RP
 //         {
-//             symbol *val = get_symbol_by_id(tree->children[0], ev);
+//             symbol *val = get_symbol_by_id(tree->children[0]);
 //             if (val == NULL)
 //             {
 //                 error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
@@ -731,7 +652,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //             {
 //             case ST_DOT: // Exp DOT ID
 //             {
-//                 void exp = translate_Exp(tree->children[0], ev);
+//                 void exp = translate_Exp(tree->children[0]);
 //                 char *name = *cast(sytd_id, tree->children[2]->data);
 //                 if (!type_can_member(exp->tp))
 //                 {
@@ -757,8 +678,8 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //             case ST_OR:
 //             {
 //                 tag = new (SES_Exp);
-//                 void exp1 = translate_Exp(tree->children[0], ev);
-//                 void exp2 = translate_Exp(tree->children[2], ev);
+//                 void exp1 = translate_Exp(tree->children[0]);
+//                 void exp2 = translate_Exp(tree->children[2]);
 //                 if (!type_can_logic(exp1->tp))
 //                 {
 //                     error_op_type(tree->children[0]->first_line);
@@ -778,8 +699,8 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //             case ST_ASSIGNOP: // Exp ASSIGNOP Exp
 //             {
 //                 tag = new (SES_Exp);
-//                 void exp1 = translate_Exp(tree->children[0], ev);
-//                 void exp2 = translate_Exp(tree->children[2], ev);
+//                 void exp1 = translate_Exp(tree->children[0]);
+//                 void exp2 = translate_Exp(tree->children[2]);
 
 //                 bool isrval = true;
 //                 if (tree->children[0]->count == 1 && tree->children[0]->children[0]->type == ST_ID)
@@ -807,8 +728,8 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //             default: // PLUS, MINUS, ...
 //             {
 //                 tag = new (SES_Exp);
-//                 void exp1 = translate_Exp(tree->children[0], ev);
-//                 void exp2 = translate_Exp(tree->children[2], ev);
+//                 void exp1 = translate_Exp(tree->children[0]);
+//                 void exp2 = translate_Exp(tree->children[2]);
 //                 if (!type_can_arithmetic(exp1->tp))
 //                 {
 //                     error_op_type(tree->children[0]->first_line);
@@ -839,8 +760,8 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     {
 //         if (tree->children[0]->type == ST_ID) // ID LP Args RP
 //         {
-//             symbol *val = get_symbol_by_id(tree->children[0], ev);
-//             void args = translate_Args(tree->children[2], ev);
+//             symbol *val = get_symbol_by_id(tree->children[0]);
+//             void args = translate_Args(tree->children[2]);
 //             tag = new (SES_Exp);
 //             if (val == NULL)
 //             {
@@ -874,8 +795,8 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //         else // Exp LB Exp RB
 //         {
 //             tag = new (SES_Exp);
-//             void exp1 = translate_Exp(tree->children[0], ev);
-//             void exp2 = translate_Exp(tree->children[2], ev);
+//             void exp1 = translate_Exp(tree->children[0]);
+//             void exp2 = translate_Exp(tree->children[2]);
 //             if (exp2->tp->cls != TC_META || exp2->tp->metatype != MT_INT)
 //             {
 //                 error_index_arg(tree->children[2]->first_line);
@@ -898,7 +819,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     tree->sem = tag;
 //     return tag;
 // }
-// static void translate_Args(syntax_tree *tree, env *ev)
+// static void translate_Args(syntax_tree *tree)
 // {
 //     ir_log(tree->first_line, "%s", "Args");
 //     // Args : Exp COMMA Args
@@ -906,9 +827,9 @@ static void translate_Program(syntax_tree *tree, env *ev)
 //     //     ;
 //     AssertEq(tree->type, ST_Args);
 
-//     void first = translate_Exp(tree->children[0], ev);
+//     void first = translate_Exp(tree->children[0]);
 //     if (tree->count > 1)
-//         first->next = translate_Args(tree->children[2], ev);
+//         first->next = translate_Args(tree->children[2]);
 //     tree->sem = first;
 //     return first;
 // }
@@ -958,7 +879,7 @@ ast *ir_translate(syntax_tree *tree)
 {
     ast *result = new (ast);
 
-    gen_label(new_label());
+    translate_Program(tree);
 
     result->len = list_len(irs);
     result->codes = list_revto_arr(irs);

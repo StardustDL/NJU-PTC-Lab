@@ -4,6 +4,15 @@
 #include "common.h"
 #include "symbol.h"
 
+typedef struct
+{
+    symbol_table *syms;
+    type *declare_type;
+    type *ret_type;
+    bool in_struct;
+    bool in_vardec;
+} env;
+
 typedef enum
 {
     ST_EMPTY,
@@ -67,15 +76,6 @@ typedef metatype_type sytd_type;
 
 typedef char sytd_id[64];
 
-typedef struct
-{
-    symbol_table *syms;
-    type *declare_type;
-    type *ret_type;
-    bool in_struct;
-    bool in_vardec;
-} env;
-
 typedef struct __syntax_tree
 {
     syntax_type type;
@@ -125,12 +125,12 @@ typedef enum
 
 typedef struct
 {
-    char name[32];
+    char name[64];
 } irvar;
 
 typedef struct
 {
-    char name[32];
+    char name[64];
 } irlabel;
 
 typedef struct
