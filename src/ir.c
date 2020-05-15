@@ -113,7 +113,7 @@ static void gen_assign(irop *left, irop *right)
 
 static void gen_add(irop *target, irop *op1, irop *op2)
 {
-    Assert(op1->kind == IRO_Variable, "wrong op type");
+    Assert(target->kind == IRO_Variable, "wrong op type");
     ircode *c = new (ircode);
     c->kind = IR_Add;
     c->bop.target = target;
@@ -124,7 +124,7 @@ static void gen_add(irop *target, irop *op1, irop *op2)
 
 static void gen_sub(irop *target, irop *op1, irop *op2)
 {
-    Assert(op1->kind == IRO_Variable, "wrong op type");
+    Assert(target->kind == IRO_Variable, "wrong op type");
     ircode *c = new (ircode);
     c->kind = IR_Sub;
     c->bop.target = target;
@@ -135,7 +135,7 @@ static void gen_sub(irop *target, irop *op1, irop *op2)
 
 static void gen_mul(irop *target, irop *op1, irop *op2)
 {
-    Assert(op1->kind == IRO_Variable, "wrong op type");
+    Assert(target->kind == IRO_Variable, "wrong op type");
     ircode *c = new (ircode);
     c->kind = IR_Mul;
     c->bop.target = target;
@@ -146,7 +146,7 @@ static void gen_mul(irop *target, irop *op1, irop *op2)
 
 static void gen_div(irop *target, irop *op1, irop *op2)
 {
-    Assert(op1->kind == IRO_Variable, "wrong op type");
+    Assert(target->kind == IRO_Variable, "wrong op type");
     ircode *c = new (ircode);
     c->kind = IR_Div;
     c->bop.target = target;
@@ -553,19 +553,18 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         break;
     case 2:
     {
-        // void exp = translate_Exp(tree->children[1]);
         switch (tree->children[0]->type)
         {
         case ST_MINUS: // MINUS Exp
-            // if (!type_can_arithmetic(exp->tp))
-            //     error_op_type(tree->children[1]->first_line);
-            // tag->tp = exp->tp;
-            break;
+        {
+            irvar *var = new_var();
+            translate_Exp(tree->children[1], var);
+            gen_sub(op_var(target), op_const(0), op_var(var));
+        }
+        break;
         case ST_NOT: // NOT Exp
         {
-            // if (!type_can_logic(exp->tp))
-            //     error_op_type(tree->children[1]->first_line);
-            // tag->tp = exp->tp;
+            // For later
         }
         break;
         default:
@@ -635,23 +634,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             case ST_AND: // Exp AND Exp, Exp OR Exp
             case ST_OR:
             {
-                // tag = new (SES_Exp);
-                // void exp1 = translate_Exp(tree->children[0]);
-                // void exp2 = translate_Exp(tree->children[2]);
-                // if (!type_can_logic(exp1->tp))
-                // {
-                //     error_op_type(tree->children[0]->first_line);
-                //     tag->tp = new_type_meta(MT_INT);
-                // }
-                // else if (!type_can_logic(exp2->tp))
-                // {
-                //     error_op_type(tree->children[2]->first_line);
-                //     tag->tp = new_type_meta(MT_INT);
-                // }
-                // else
-                // {
-                //     tag->tp = exp1->tp;
-                // }
+                // For lator
             }
             break;
             case ST_ASSIGNOP: // Exp ASSIGNOP Exp
@@ -685,28 +668,26 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             break;
             default: // PLUS, MINUS, ...
             {
-                // tag = new (SES_Exp);
-                // void exp1 = translate_Exp(tree->children[0]);
-                // void exp2 = translate_Exp(tree->children[2]);
-                // if (!type_can_arithmetic(exp1->tp))
-                // {
-                //     error_op_type(tree->children[0]->first_line);
-                //     tag->tp = new_type_meta(MT_INT);
-                // }
-                // else if (!type_can_arithmetic(exp2->tp))
-                // {
-                //     error_op_type(tree->children[2]->first_line);
-                //     tag->tp = new_type_meta(MT_INT);
-                // }
-                // else if (!type_can_arithmetic2(exp1->tp, exp2->tp))
-                // {
-                //     error_op_type(tree->children[2]->first_line);
-                //     tag->tp = new_type_meta(MT_INT);
-                // }
-                // else
-                // {
-                //     tag->tp = exp1->tp;
-                // }
+                irvar *t1 = new_var(), *t2 = new_var();
+                translate_Exp(tree->children[0], t1);
+                translate_Exp(tree->children[2], t2);
+                switch (tree->children[1]->type)
+                {
+                case ST_PLUS:
+                    gen_add(op_var(target), op_var(t1), op_var(t2));
+                    break;
+                case ST_MINUS:
+                    gen_sub(op_var(target), op_var(t1), op_var(t2));
+                    break;
+                case ST_STAR:
+                    gen_mul(op_var(target), op_var(t1), op_var(t2));
+                    break;
+                case ST_DIV:
+                    gen_div(op_var(target), op_var(t1), op_var(t2));
+                    break;
+                default:
+                    panic("unexpect arth type");
+                }
             }
             break;
             }
