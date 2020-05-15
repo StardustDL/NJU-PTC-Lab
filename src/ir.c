@@ -823,7 +823,16 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         }
         else // Exp LB Exp RB
         {
-            // TODO
+            irvar *offset = new_var();
+            if (tree->children[0]->count == 1 && tree->children[0]->children[0]->type == ST_ID) // ID [ Exp ]
+            {
+                symbol *val = get_symbol_by_id(tree->children[0]->children[0], tree->ev);
+                AssertNotNull(val);
+                AssertNotNull(val->ir);
+                irvar *var = cast(irvar, val->ir);
+
+                gen_assign(op_var(offset), op_ref(var));
+            }
             // tag = new (SES_Exp);
             // void exp1 = translate_Exp(tree->children[0]);
             // void exp2 = translate_Exp(tree->children[2]);

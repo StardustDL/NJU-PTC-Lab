@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Install toolchain
         run: |
-          sudo apt-get install -yq bison flex dos2unix
+          sudo apt-get install -yq bison flex dos2unix build-essential
           dos2unix $(find -name '*.sh')
           chmod +x $(find -name '*.sh')
       - name: Build
