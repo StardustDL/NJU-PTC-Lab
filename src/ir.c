@@ -87,6 +87,18 @@ static irop *op_const(int value)
     return op;
 }
 
+static irop *op_rval(irvar *var)
+{
+    if (var->isref)
+    {
+        return op_deref(var);
+    }
+    else
+    {
+        return op_var(var);
+    }
+}
+
 static void gen_label(irlabel *label)
 {
     ircode *c = new (ircode);
@@ -338,6 +350,10 @@ static void translate_FunDec(syntax_tree *tree)
         symbol *param = st_findonly(subev->syms, paramname);
         AssertNotNull(param);
         irvar *var = new_var();
+        if (sym->tp->args[i]->tp->cls == TC_STRUCT || sym->tp->args[i]->tp->cls == TC_ARRAY)
+        {
+            var->isref = true;
+        }
         param->ir = var;
 
         gen_param(op_var(var));
@@ -363,13 +379,21 @@ static void translate_VarDec(syntax_tree *tree)
     case TC_STRUCT:
     {
         int sz = type_sizeof(sem->sym->tp);
-        gen_dec(op_var(var), sz);
+        irvar *tmp = new_var();
+        gen_dec(op_var(tmp), sz);
+        gen_assign(op_var(var), op_ref(tmp));
+        var->isref = true;
+        sem->sym->ir = var;
     }
     break;
     case TC_ARRAY:
     {
         int sz = type_sizeof(sem->sym->tp);
-        gen_dec(op_var(var), sz);
+        irvar *tmp = new_var();
+        gen_dec(op_var(tmp), sz);
+        gen_assign(op_var(var), op_ref(tmp));
+        var->isref = true;
+        sem->sym->ir = var;
     }
     break;
     case TC_META:
@@ -652,6 +676,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             AssertNotNull(val->ir);
             irvar *var = cast(irvar, val->ir);
             gen_assign(op_var(target), op_var(var));
+            target->isref = var->isref;
         }
         break;
         }
@@ -664,7 +689,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         {
             irvar *var = new_var();
             translate_Exp(tree->children[1], var);
-            gen_sub(op_var(target), op_const(0), op_var(var));
+            gen_sub(op_var(target), op_const(0), op_rval(var));
         }
         break;
         case ST_NOT: // NOT Exp
@@ -709,27 +734,31 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             {
             case ST_DOT: // Exp DOT ID
             {
-                // TODO
-                // void exp = translate_Exp(tree->children[0]);
-                // char *name = *cast(sytd_id, tree->children[2]->data);
-                // if (!type_can_member(exp->tp))
-                // {
-                //     error_member(tree->first_line);
-                //     tag->tp = new_type_never();
-                // }
-                // else
-                // {
-                //     symbol *member = type_can_membername(exp->tp, name);
-                //     if (member == NULL)
-                //     {
-                //         error_member_nodef(tree->children[2]->first_line, name);
-                //         tag->tp = new_type_never();
-                //     }
-                //     else
-                //     {
-                //         tag->tp = member->tp;
-                //     }
-                // }
+                irvar *offset = new_var();
+                translate_Exp(tree->children[0], offset); // offset must be a address
+                AssertEq(offset->isref, true);
+
+                SES_Exp *leftSem = cast(SES_Exp, tree->children[0]->sem);
+                int sz = 0;
+
+                {
+                    char *name = *cast(sytd_id, tree->children[2]->data);
+                    type *a = leftSem->tp;
+                    AssertEq(a->cls, TC_STRUCT);
+                    for (int i = 0; i < a->memc; i++)
+                    {
+                        symbol *sym = a->mems[i];
+                        if (strcmp(sym->name, name) == 0)
+                        {
+                            break;
+                        }
+                        sz += type_sizeof(sym->tp);
+                    }
+                }
+
+                gen_add(op_var(offset), op_var(offset), op_const(sz));
+                gen_assign(op_var(target), op_var(offset));
+                target->isref = true;
             }
             break;
             case ST_AND: // Exp AND Exp, Exp OR Exp
@@ -750,15 +779,67 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
 
                     translate_Exp(tree->children[2], var);
 
-                    gen_assign(op_var(target), op_var(var));
+                    SES_Exp *leftSem = cast(SES_Exp, tree->children[0]->sem);
+                    switch (leftSem->tp->cls)
+                    {
+                    case TC_META: // INT assign
+                    {
+                        gen_assign(op_var(target), op_rval(var));
+                    }
+                    break;
+                    case TC_STRUCT: //Struct assign
+                        //TODO;
+                        break;
+                    case TC_ARRAY: //Array assign
+                        //TODO
+                        break;
+                    }
                 }
                 else if (tree->children[0]->count == 4 && tree->children[0]->children[1]->type == ST_LB) // E[index] = Exp
                 {
-                    // TODO
+                    irvar *offset = new_var();
+                    irvar *value = new_var();
+                    translate_Exp(tree->children[0], offset);
+                    AssertEq(offset->isref, true);
+                    translate_Exp(tree->children[2], value);
+                    SES_Exp *leftSem = cast(SES_Exp, tree->children[0]->sem);
+                    switch (leftSem->tp->cls)
+                    {
+                    case TC_META: // INT assign
+                    {
+                        gen_assign(op_deref(offset), op_rval(value));
+                    }
+                    break;
+                    case TC_STRUCT: //Struct assign
+                        //TODO;
+                        break;
+                    case TC_ARRAY: //Array assign
+                        //TODO
+                        break;
+                    }
                 }
                 else if (tree->children[0]->count == 3 && tree->children[0]->children[1]->type == ST_DOT) // E.mem = Exp
                 {
-                    // TODO
+                    irvar *offset = new_var();
+                    irvar *value = new_var();
+                    translate_Exp(tree->children[0], offset);
+                    AssertEq(offset->isref, true);
+                    translate_Exp(tree->children[2], value);
+                    SES_Exp *leftSem = cast(SES_Exp, tree->children[0]->sem);
+                    switch (leftSem->tp->cls)
+                    {
+                    case TC_META: // INT assign
+                    {
+                        gen_assign(op_deref(offset), op_rval(value));
+                    }
+                    break;
+                    case TC_STRUCT: //Struct assign
+                        //TODO;
+                        break;
+                    case TC_ARRAY: //Array assign
+                        //TODO
+                        break;
+                    }
                 }
                 else
                 {
@@ -774,16 +855,16 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
                 switch (tree->children[1]->type)
                 {
                 case ST_PLUS:
-                    gen_add(op_var(target), op_var(t1), op_var(t2));
+                    gen_add(op_var(target), op_rval(t1), op_rval(t2));
                     break;
                 case ST_MINUS:
-                    gen_sub(op_var(target), op_var(t1), op_var(t2));
+                    gen_sub(op_var(target), op_rval(t1), op_rval(t2));
                     break;
                 case ST_STAR:
-                    gen_mul(op_var(target), op_var(t1), op_var(t2));
+                    gen_mul(op_var(target), op_rval(t1), op_rval(t2));
                     break;
                 case ST_DIV:
-                    gen_div(op_var(target), op_var(t1), op_var(t2));
+                    gen_div(op_var(target), op_rval(t1), op_rval(t2));
                     break;
                 default:
                     panic("unexpect arth type");
@@ -805,7 +886,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             if (strcmp(val->name, "write") == 0)
             {
                 irvar *p = cast(irvar, params->obj);
-                gen_write(op_var(p));
+                gen_write(op_rval(p));
                 gen_assign(op_var(target), op_const(0));
             }
             else
@@ -814,7 +895,15 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
                 for (int i = val->tp->argc - 1; i >= 0; i--)
                 {
                     irvar *p = cast(irvar, paramArr[i]);
-                    gen_arg(op_var(p));
+                    if (val->tp->args[i]->tp->cls == TC_ARRAY || val->tp->args[i]->tp->cls == TC_STRUCT)
+                    {
+                        AssertEq(p->isref, true);
+                        gen_arg(op_var(p));
+                    }
+                    else
+                    {
+                        gen_arg(op_rval(p));
+                    }
                 }
                 AssertNotNull(val->ir);
                 irlabel *l = cast(irlabel, val->ir);
@@ -824,36 +913,19 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         else // Exp LB Exp RB
         {
             irvar *offset = new_var();
-            if (tree->children[0]->count == 1 && tree->children[0]->children[0]->type == ST_ID) // ID [ Exp ]
-            {
-                symbol *val = get_symbol_by_id(tree->children[0]->children[0], tree->ev);
-                AssertNotNull(val);
-                AssertNotNull(val->ir);
-                irvar *var = cast(irvar, val->ir);
+            translate_Exp(tree->children[0], offset); // offset must be a address
+            AssertEq(offset->isref, true);
 
-                gen_assign(op_var(offset), op_ref(var));
-            }
-            else
-            {
-                translate_Exp(tree->children[0], offset); // offset must be a address
-            }
-            // tag = new (SES_Exp);
-            // void exp1 = translate_Exp(tree->children[0]);
-            // void exp2 = translate_Exp(tree->children[2]);
-            // if (exp2->tp->cls != TC_META || exp2->tp->metatype != MT_INT)
-            // {
-            //     error_index_arg(tree->children[2]->first_line);
-            //     tag->tp = type_array_descending(exp1->tp);
-            // }
-            // else if (!type_can_index(exp1->tp))
-            // {
-            //     error_index(tree->first_line);
-            //     tag->tp = new_type_any();
-            // }
-            // else
-            // {
-            //     tag->tp = type_array_descending(exp1->tp);
-            // }
+            SES_Exp *sem = cast(SES_Exp, tree->sem);
+            type *baseTp = sem->tp;
+            int sz = type_sizeof(baseTp);
+
+            irvar *index = new_var();
+            translate_Exp(tree->children[2], index);
+            gen_mul(op_var(index), op_rval(index), op_const(sz));
+            gen_add(op_var(offset), op_var(offset), op_var(index));
+            gen_assign(op_var(target), op_var(offset));
+            target->isref = true;
         }
     }
     break;

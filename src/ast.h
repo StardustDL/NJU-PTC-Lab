@@ -126,6 +126,7 @@ typedef enum
 typedef struct
 {
     char name[64];
+    bool isref;
 } irvar;
 
 typedef struct
