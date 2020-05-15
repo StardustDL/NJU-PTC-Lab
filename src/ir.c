@@ -897,10 +897,10 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             else
             {
                 void **paramArr = list_revto_arr(params);
-                for (int i = 0; i < val->tp->argc; i++)
+                for (int i = 0, j = val->tp->argc - 1; i < val->tp->argc && j >= 0; i++, j--)
                 {
                     irvar *p = cast(irvar, paramArr[i]);
-                    if (val->tp->args[i]->tp->cls == TC_ARRAY || val->tp->args[i]->tp->cls == TC_STRUCT)
+                    if (val->tp->args[j]->tp->cls == TC_ARRAY || val->tp->args[j]->tp->cls == TC_STRUCT)
                     {
                         AssertEq(p->isref, true);
                         gen_arg(op_var(p));

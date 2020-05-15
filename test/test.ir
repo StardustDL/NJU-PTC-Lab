@@ -1,66 +1,128 @@
 ./parser ../test/test1.cmm
-FUNCTION hanoi :
+FUNCTION print :
 PARAM t2
 PARAM t3
-PARAM t4
-PARAM t5
-t6 := t2
-t7 := #1
-IF t6 == t7 GOTO l1
+t5 := #0
+t4 := t5
+LABEL l3 :
+t6 := t4
+t7 := t3
+IF t6 < t7 GOTO l1
 GOTO l2
 LABEL l1 :
-t11 := t3
-t12 := #1000000
-t9 := t11 * t12
-t10 := t5
-t8 := t9 + t10
-WRITE t8
+t9 := t2
+t10 := t4
+t10 := t10 * #4
+t9 := t9 + t10
+t8 := t9
+WRITE *t8
 t1 := #0
+t12 := t4
+t13 := #1
+t11 := t12 + t13
+t4 := t11
+t1 := t4
 GOTO l3
 LABEL l2 :
-t14 := t2
-t15 := #1
-t13 := t14 - t15
-t16 := t3
-t17 := t5
-t18 := t4
-ARG t18
-ARG t17
-ARG t16
-ARG t13
-t1 := CALL hanoi
-t22 := t3
-t23 := #1000000
-t20 := t22 * t23
-t21 := t5
-t19 := t20 + t21
-WRITE t19
-t1 := #0
-t25 := t2
-t26 := #1
-t24 := t25 - t26
-t27 := t4
-t28 := t3
-t29 := t5
-ARG t29
-ARG t28
-ARG t27
-ARG t24
-t1 := CALL hanoi
-LABEL l3 :
-t30 := #0
-RETURN t30
-FUNCTION main :
-t32 := #3
-t31 := t32
-t33 := t31
-t34 := #1
-t35 := #2
-t36 := #3
-ARG t36
-ARG t35
-ARG t34
-ARG t33
-t1 := CALL hanoi
-t37 := #0
+t14 := #0
+RETURN t14
+FUNCTION InnerP :
+PARAM t15
+PARAM t16
+t18 := #0
+t17 := t18
+t20 := #0
+t19 := t20
+t22 := #3
+t21 := t22
+LABEL l6 :
+t23 := t19
+t24 := t21
+IF t23 < t24 GOTO l4
+GOTO l5
+LABEL l4 :
+t26 := t17
+t30 := t15
+t31 := t19
+t31 := t31 * #4
+t30 := t30 + t31
+t28 := t30
+t32 := t16
+t33 := t19
+t33 := t33 * #4
+t32 := t32 + t33
+t29 := t32
+t27 := *t28 * *t29
+t25 := t26 + t27
+t17 := t25
+t1 := t17
+t35 := t19
+t36 := #1
+t34 := t35 + t36
+t19 := t34
+t1 := t19
+GOTO l6
+LABEL l5 :
+t37 := t17
 RETURN t37
+FUNCTION main :
+DEC t39 12
+t38 := &t39
+DEC t41 12
+t40 := &t41
+t43 := #0
+t42 := t43
+t45 := #3
+t44 := t45
+LABEL l9 :
+t46 := t42
+t47 := t44
+IF t46 < t47 GOTO l7
+GOTO l8
+LABEL l7 :
+t50 := t38
+t51 := t42
+t51 := t51 * #4
+t50 := t50 + t51
+t48 := t50
+t52 := t42
+t53 := t42
+t49 := t52 * t53
+*t48 := t49
+t56 := t40
+t57 := t42
+t57 := t57 * #4
+t56 := t56 + t57
+t54 := t56
+t60 := #2
+t61 := t42
+t58 := t60 * t61
+t59 := #1
+t55 := t58 + t59
+*t54 := t55
+t63 := t42
+t64 := #1
+t62 := t63 + t64
+t42 := t62
+t1 := t42
+GOTO l9
+LABEL l8 :
+t65 := t38
+t66 := #3
+ARG t66
+ARG t65
+t1 := CALL print
+t67 := t40
+t68 := #3
+ARG t68
+ARG t67
+t1 := CALL print
+t70 := t38
+t71 := t40
+ARG t71
+ARG t70
+t69 := CALL InnerP
+WRITE t69
+t1 := #0
+t72 := #0
+RETURN t72
