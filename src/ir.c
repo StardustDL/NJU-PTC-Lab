@@ -194,6 +194,16 @@ static void gen_dec(irop *op, int size)
     push_ircode(c);
 }
 
+static void gen_call(irop *ret, irlabel *label)
+{
+    Assert(ret->kind == IRO_Variable, "wrong ret type");
+    ircode *c = new (ircode);
+    c->kind = IR_Call;
+    c->call.func = label;
+    c->call.ret = ret;
+    push_ircode(c);
+}
+
 static void gen_arg(irop *arg)
 {
     ircode *c = new (ircode);
@@ -245,7 +255,7 @@ static void translate_DecList(syntax_tree *tree);
 static void translate_Dec(syntax_tree *tree);
 static void translate_Exp(syntax_tree *tree, irvar *target);
 static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *false_label);
-static void translate_Args(syntax_tree *tree);
+static list *translate_Args(syntax_tree *tree);
 #pragma endregion
 
 static void translate_Program(syntax_tree *tree)
@@ -679,24 +689,19 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         break;
         case ST_ID: // ID LP RP
         {
-            // TODO
-            // symbol *val = get_symbol_by_id(tree->children[0]);
-            // if (val == NULL)
-            // {
-            //     error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
-            //     tag->tp = new_type_never();
-            // }
-            // else if (!type_can_call(val->tp))
-            // {
-            //     error_call(tree->first_line);
-            //     tag->tp = new_type_never();
-            // }
-            // else
-            // {
-            //     if (val->tp->argc != 0)
-            //         error_call_type(tree->first_line);
-            //     tag->tp = val->tp->ret;
-            // }
+            symbol *val = get_symbol_by_id(tree->children[0], tree->ev);
+            AssertNotNull(val);
+            AssertEq(val->tp->cls, TC_FUNC);
+            if (strcmp(val->name, "read") == 0)
+            {
+                gen_read(op_var(target));
+            }
+            else
+            {
+                AssertNotNull(val->ir);
+                irlabel *l = cast(irlabel, val->ir);
+                gen_call(op_var(target), l);
+            }
         }
         break;
         default:
@@ -794,38 +799,27 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
     {
         if (tree->children[0]->type == ST_ID) // ID LP Args RP
         {
-            // TODO
-            // symbol *val = get_symbol_by_id(tree->children[0]);
-            // void args = translate_Args(tree->children[2]);
-            // tag = new (SES_Exp);
-            // if (val == NULL)
-            // {
-            //     error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
-            //     tag->tp = new_type_never();
-            // }
-            // else if (!type_can_call(val->tp))
-            // {
-            //     error_call(tree->first_line);
-            //     tag->tp = new_type_never();
-            // }
-            // else
-            // {
-            //     int i = 0;
-            //     while (args != NULL && i < val->tp->argc)
-            //     {
-            //         if (!type_full_eq(args->tp, val->tp->args[i], false))
-            //         {
-            //             error_call_type(args->lineno);
-            //         }
-            //         args = args->next;
-            //         i++;
-            //     }
-            //     if (args != NULL || i != val->tp->argc)
-            //     {
-            //         error_call_type(tree->first_line);
-            //     }
-            //     tag->tp = val->tp->ret;
-            // }
+            symbol *val = get_symbol_by_id(tree->children[0], tree->ev);
+            AssertEq(val->tp->cls, TC_FUNC);
+            list *params = translate_Args(tree->children[2]);
+            if (strcmp(val->name, "write") == 0)
+            {
+                irvar *p = cast(irvar, params->obj);
+                gen_write(op_var(p));
+                gen_assign(op_var(target), op_const(0));
+            }
+            else
+            {
+                void **paramArr = list_revto_arr(params);
+                for (int i = val->tp->argc - 1; i >= 0; i--)
+                {
+                    irvar *p = cast(irvar, paramArr[i]);
+                    gen_arg(op_var(p));
+                }
+                AssertNotNull(val->ir);
+                irlabel *l = cast(irlabel, val->ir);
+                gen_call(op_var(target), l);
+            }
         }
         else // Exp LB Exp RB
         {
@@ -865,20 +859,22 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         gen_label(f);
     }
 }
-// static void translate_Args(syntax_tree *tree)
-// {
-//     ir_log(tree->first_line, "%s", "Args");
-//     // Args : Exp COMMA Args
-//     //     | Exp
-//     //     ;
-//     AssertEq(tree->type, ST_Args);
+static list *translate_Args(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "Args");
+    // Args : Exp COMMA Args
+    //     | Exp
+    //     ;
+    AssertEq(tree->type, ST_Args);
 
-//     void first = translate_Exp(tree->children[0]);
-//     if (tree->count > 1)
-//         first->next = translate_Args(tree->children[2]);
-//     tree->sem = first;
-//     return first;
-// }
+    irvar *var = new_var();
+    translate_Exp(tree->children[0], var);
+    list *first = new_list();
+    first->obj = var;
+    if (tree->count > 1)
+        first->next = translate_Args(tree->children[2]);
+    return first;
+}
 
 static bool ir_is_passed = false;
 static char ir_buffer[1024];
