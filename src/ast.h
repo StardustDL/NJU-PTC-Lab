@@ -95,11 +95,6 @@ void delete_syntax_tree(syntax_tree *tree);
 
 void show_syntax_tree(syntax_tree *tree);
 
-typedef struct
-{
-    list *irs;
-} ast;
-
 typedef enum
 {
     IR_Label,
@@ -109,9 +104,6 @@ typedef enum
     IR_Sub,
     IR_Mul,
     IR_Div,
-    IR_Ref,
-    IR_Deref,
-    IR_Refassign,
     IR_Goto,
     IR_Branch,
     IR_Return,
@@ -127,13 +119,14 @@ typedef enum
 {
     IRO_Variable,
     IRO_Constant,
-    IRO_Address,
+    IRO_Ref,
+    IRO_Deref,
 } irop_type;
 
 typedef struct
 {
     char name[32];
-} ir_var;
+} irvar;
 
 typedef struct
 {
@@ -144,46 +137,52 @@ typedef struct
 {
     irop_type kind;
     union {
-        ir_var *var;
+        irvar *var;
         int value;
     };
 } irop;
 
 typedef struct
 {
-    irop_type kind;
+    irc_type kind;
     union {
         struct
         {
-            irop left, right;
+            irop *left, *right;
         } assign;
         struct
         {
-            irop op1, op2, target;
+            irop *op1, *op2, *target;
         } bop;
         irlabel *label;
         struct
         {
-            irop op1, op2;
+            irop *op1, *op2;
             relop_type relop;
-            irlabel target;
+            irlabel *target;
         } branch;
-        irop ret;
+        irop *ret;
         struct
         {
-            irop var;
+            irop *op;
             int size;
         } dec;
-        irop arg;
-        irop param;
-        irop read;
-        irop write;
+        irop *arg;
+        irop *param;
+        irop *read;
+        irop *write;
         struct
         {
             irlabel *func;
-            irop ret;
-        } func;
+            irop *ret;
+        } call;
     };
 } ircode;
+
+typedef struct
+{
+    int len;
+    void **codes;
+} ast;
 
 #endif

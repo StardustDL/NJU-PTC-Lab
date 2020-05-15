@@ -10,9 +10,209 @@
 #include "object.h"
 #include "debug.h"
 
-#pragma region structs
+void ir_log(int lineno, char *format, ...);
 
-#pragma endregion
+static list *irs = NULL;
+
+static void push_ircode(ircode *code)
+{
+    list_pushfront(irs, code);
+}
+
+static irvar *new_var()
+{
+    static int count = 0;
+
+    Assert(count >= 0, "too many var");
+    count++;
+    irvar *var = new (irvar);
+    sprintf(var->name, "t%d", count);
+    return var;
+}
+
+static irlabel *new_label()
+{
+    static int count = 0;
+
+    Assert(count >= 0, "too many label");
+    count++;
+    irlabel *l = new (irlabel);
+    sprintf(l->name, "l%d", count);
+    return l;
+}
+
+static irop *op_var(irvar *var)
+{
+    irop *op = new (irop);
+    op->kind = IRO_Variable;
+    op->var = var;
+    return op;
+}
+
+static irop *op_ref(irvar *var)
+{
+    irop *op = new (irop);
+    op->kind = IRO_Ref;
+    op->var = var;
+    return op;
+}
+
+static irop *op_deref(irvar *var)
+{
+    irop *op = new (irop);
+    op->kind = IRO_Deref;
+    op->var = var;
+    return op;
+}
+
+static irop *op_const(int value)
+{
+    irop *op = new (irop);
+    op->kind = IRO_Constant;
+    op->value = value;
+    return op;
+}
+
+static void gen_label(irlabel *label)
+{
+    ircode *c = new (ircode);
+    c->kind = IR_Label;
+    c->label = label;
+    push_ircode(c);
+}
+
+static void gen_func(irlabel *label)
+{
+    ircode *c = new (ircode);
+    c->kind = IR_Func;
+    c->label = label;
+    push_ircode(c);
+}
+
+static void gen_assign(irop *left, irop *right)
+{
+    Assert(left->kind == IRO_Variable || left->kind == IRO_Deref, "wrong op type");
+    ircode *c = new (ircode);
+    c->kind = IR_Assign;
+    c->assign.left = left;
+    c->assign.right = right;
+    push_ircode(c);
+}
+
+static void gen_add(irop *target, irop *op1, irop *op2)
+{
+    Assert(op1->kind == IRO_Variable, "wrong op type");
+    ircode *c = new (ircode);
+    c->kind = IR_Add;
+    c->bop.target = target;
+    c->bop.op1 = op1;
+    c->bop.op2 = op2;
+    push_ircode(c);
+}
+
+static void gen_sub(irop *target, irop *op1, irop *op2)
+{
+    Assert(op1->kind == IRO_Variable, "wrong op type");
+    ircode *c = new (ircode);
+    c->kind = IR_Sub;
+    c->bop.target = target;
+    c->bop.op1 = op1;
+    c->bop.op2 = op2;
+    push_ircode(c);
+}
+
+static void gen_mul(irop *target, irop *op1, irop *op2)
+{
+    Assert(op1->kind == IRO_Variable, "wrong op type");
+    ircode *c = new (ircode);
+    c->kind = IR_Mul;
+    c->bop.target = target;
+    c->bop.op1 = op1;
+    c->bop.op2 = op2;
+    push_ircode(c);
+}
+
+static void gen_div(irop *target, irop *op1, irop *op2)
+{
+    Assert(op1->kind == IRO_Variable, "wrong op type");
+    ircode *c = new (ircode);
+    c->kind = IR_Div;
+    c->bop.target = target;
+    c->bop.op1 = op1;
+    c->bop.op2 = op2;
+    push_ircode(c);
+}
+
+static void gen_goto(irlabel *label)
+{
+    ircode *c = new (ircode);
+    c->kind = IR_Goto;
+    c->label = label;
+    push_ircode(c);
+}
+
+static void gen_branch(relop_type relop, irop *op1, irop *op2, irlabel *target)
+{
+    ircode *c = new (ircode);
+    c->kind = IR_Branch;
+    c->branch.relop = relop;
+    c->branch.op1 = op1;
+    c->branch.op2 = op2;
+    c->branch.target = target;
+    push_ircode(c);
+}
+
+static void gen_return(irop *ret)
+{
+    ircode *c = new (ircode);
+    c->kind = IR_Return;
+    c->ret = ret;
+    push_ircode(c);
+}
+
+static void gen_dec(irop *op, int size)
+{
+    Assert(op->kind == IRO_Variable, "wrong op type");
+    ircode *c = new (ircode);
+    c->kind = IR_Dec;
+    c->dec.op = op;
+    c->dec.size = size;
+    push_ircode(c);
+}
+
+static void gen_arg(irop *arg)
+{
+    ircode *c = new (ircode);
+    c->kind = IR_Arg;
+    c->arg = arg;
+    push_ircode(c);
+}
+
+static void gen_param(irop *param)
+{
+    Assert(param->kind == IRO_Variable, "wrong op type");
+    ircode *c = new (ircode);
+    c->kind = IR_Param;
+    c->param = param;
+    push_ircode(c);
+}
+
+static void gen_read(irop *read)
+{
+    Assert(read->kind == IRO_Variable, "wrong op type");
+    ircode *c = new (ircode);
+    c->kind = IR_Read;
+    c->read = read;
+    push_ircode(c);
+}
+
+static void gen_write(irop *write)
+{
+    ircode *c = new (ircode);
+    c->kind = IR_Write;
+    c->write = write;
+    push_ircode(c);
+}
 
 #pragma region
 static void translate_Program(syntax_tree *tree, env *ev);
@@ -38,7 +238,7 @@ static void translate_Program(syntax_tree *tree, env *ev)
     //     ;
 
     AssertEq(tree->type, ST_Program);
-    translate_ExtDefList(tree->children[0], ev);
+    // translate_ExtDefList(tree->children[0], ev);
 }
 // static void translate_ExtDefList(syntax_tree *tree, env *ev)
 // {
@@ -751,11 +951,15 @@ void ir_log(int lineno, char *format, ...)
 void ir_prepare()
 {
     ir_is_passed = true;
+    irs = NULL;
 }
 
-ast* ir_translate(syntax_tree *tree)
+ast *ir_translate(syntax_tree *tree)
 {
-    return new(ast);
+    ast *result = new (ast);
+    result->len = list_len(irs);
+    result->codes = list_revto_arr(irs);
+    return result;
 }
 
 bool ir_has_passed()
@@ -763,32 +967,134 @@ bool ir_has_passed()
     return ir_is_passed;
 }
 
+void printOprand(irop *op, FILE *file)
+{
+    switch (op->kind)
+    {
+    case IRO_Variable:
+        fprintf(file, "%s", op->var->name);
+        break;
+    case IRO_Constant:
+        fprintf(file, "#%d", op->value);
+        break;
+    case IRO_Deref:
+        fprintf(file, "*%s", op->var->name);
+        break;
+    case IRO_Ref:
+        fprintf(file, "&%s", op->var->name);
+        break;
+    }
+}
+
 void ir_linearise(ast *tree, FILE *file)
 {
-    fputs("FUNCTION main :\n", file);
-    fputs("READ t1\n", file);
-    fputs("v1 := t1\n", file);
-    fputs("t2 := #0\n", file);
-    fputs("IF v1 > t2 GOTO label1\n", file);
-    fputs("GOTO label2\n", file);
-    fputs("LABEL label1 :\n", file);
-    fputs("t3 := #1\n", file);
-    fputs("WRITE t3\n", file);
-    fputs("GOTO label3\n", file);
-    fputs("LABEL label2 :\n", file);
-    fputs("t4 := #0\n", file);
-    fputs("IF v1 < t4 GOTO label4\n", file);
-    fputs("GOTO label5\n", file);
-    fputs("LABEL label4 :\n", file);
-    fputs("t5 := #1\n", file);
-    fputs("t6 := #0 - t5\n", file);
-    fputs("WRITE t6\n", file);
-    fputs("GOTO label6\n", file);
-    fputs("LABEL label5 :\n", file);
-    fputs("t7 := #0\n", file);
-    fputs("WRITE t7\n", file);
-    fputs("LABEL label6 :\n", file);
-    fputs("LABEL label3 :\n", file);
-    fputs("t8 := #0\n", file);
-    fputs("RETURN t8\n", file);
+    for (int i = 0; i < tree->len; i++)
+    {
+        ircode *code = cast(ircode, tree->codes[i]);
+        switch (code->kind)
+        {
+        case IR_Label:
+            fprintf(file, "LABEL %s :\n", code->label->name);
+            break;
+        case IR_Func:
+            fprintf(file, "FUNCTION %s :\n", code->label->name);
+            break;
+        case IR_Assign:
+            printOprand(code->assign.left, file);
+            fprintf(file, " := ");
+            printOprand(code->assign.right, file);
+            fprintf(file, "\n");
+            break;
+        case IR_Add:
+            printOprand(code->bop.target, file);
+            fprintf(file, " := ");
+            printOprand(code->bop.op1, file);
+            fprintf(file, " + ");
+            printOprand(code->bop.op2, file);
+            fprintf(file, "\n");
+            break;
+        case IR_Sub:
+            printOprand(code->bop.target, file);
+            fprintf(file, " := ");
+            printOprand(code->bop.op1, file);
+            fprintf(file, " - ");
+            printOprand(code->bop.op2, file);
+            fprintf(file, "\n");
+            break;
+        case IR_Mul:
+            printOprand(code->bop.target, file);
+            fprintf(file, " := ");
+            printOprand(code->bop.op1, file);
+            fprintf(file, " * ");
+            printOprand(code->bop.op2, file);
+            fprintf(file, "\n");
+            break;
+        case IR_Div:
+            printOprand(code->bop.target, file);
+            fprintf(file, " := ");
+            printOprand(code->bop.op1, file);
+            fprintf(file, " / ");
+            printOprand(code->bop.op2, file);
+            fprintf(file, "\n");
+            break;
+        case IR_Goto:
+            fprintf(file, "GOTO %s :\n", code->label->name);
+            break;
+        case IR_Branch:
+            fprintf(file, "IF ");
+            printOprand(code->branch.op1, file);
+            switch (code->branch.relop)
+            {
+            case RT_L:
+                fprintf(file, " > ");
+                break;
+            case RT_S:
+                fprintf(file, " < ");
+                break;
+            case RT_LE:
+                fprintf(file, " >= ");
+                break;
+            case RT_SE:
+                fprintf(file, " <= ");
+                break;
+            case RT_E:
+                fprintf(file, " == ");
+                break;
+            case RT_NE:
+                fprintf(file, " != ");
+                break;
+            }
+            printOprand(code->branch.op2, file);
+            fprintf(file, " GOTO %s", code->branch.target->name);
+            fprintf(file, "\n");
+            break;
+        case IR_Return:
+            fprintf(file, "RETURN ");
+            printOprand(code->ret, file);
+            fprintf(file, "\n");
+            break;
+        case IR_Dec:
+            fprintf(file, "DEC %s %d\n", code->dec.op->var->name, code->dec.size);
+            break;
+        case IR_Arg:
+            fprintf(file, "ARG ");
+            printOprand(code->arg, file);
+            fprintf(file, "\n");
+            break;
+        case IR_Call:
+            fprintf(file, "%s := CALL %s\n", code->call.ret->var->name, code->call.func->name);
+            break;
+        case IR_Param:
+            fprintf(file, "PARAM %s\n", code->param->var->name);
+            break;
+        case IR_Read:
+            fprintf(file, "READ %s\n", code->read->var->name);
+            break;
+        case IR_Write:
+            fprintf(file, "WRITE ");
+            printOprand(code->write, file);
+            fprintf(file, "\n");
+            break;
+        }
+    }
 }

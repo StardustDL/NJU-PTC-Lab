@@ -12,4 +12,10 @@ list* new_list();
 
 list* list_pushfront(list* l, void* obj);
 
+int list_len(list *l);
+
+void **list_to_arr(list *l);
+
+void **list_revto_arr(list *l);
+
 #endif

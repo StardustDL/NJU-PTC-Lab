@@ -1171,7 +1171,7 @@ bool semantics_analyse(syntax_tree *tree)
     {
         symbol **args = newarr(symbol, 1);
         args[0] = new_symbol("value", 0,  new_type_meta(MT_INT), SS_DEF);
-        type *tpWrite = new_type_func(1, args, new_type_unit());
+        type *tpWrite = new_type_func(1, args, new_type_meta(MT_INT));
         symbol *write = new_symbol("write", 0, tpWrite, SS_DEF);
         st_add(ev->syms, write);
     }
