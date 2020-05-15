@@ -200,6 +200,33 @@ bool type_full_eq(type *a, type *b, bool strict_arr)
     panic("Unexpect type class %d", a->cls);
 }
 
+int type_sizeof(type *a)
+{
+    switch (a->cls)
+    {
+    case TC_META:
+        return 4;
+    case TC_ARRAY:
+    {
+        int bsize = type_sizeof(a->base);
+        int factor = 1;
+        for (int i = 0; i < a->rank; i++)
+            factor *= a->lens[i];
+        return bsize * factor;
+    }
+    case TC_STRUCT:
+    {
+        int res = 0;
+        for (int i = 0; i < a->memc; i++)
+        {
+            res += type_sizeof(a->mems[i]->tp);
+        }
+        return res;
+    }
+    }
+    panic("Unexpect type class %d", a->cls);
+}
+
 type *type_array_descending(type *t)
 {
     AssertEq(t->cls, TC_ARRAY);

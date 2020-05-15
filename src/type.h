@@ -41,4 +41,6 @@ bool type_can_arithmetic(type *a);
 
 bool type_can_arithmetic2(type *a, type *b);
 
+int type_sizeof(type* a);
+
 #endif

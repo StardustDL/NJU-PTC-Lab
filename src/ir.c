@@ -346,16 +346,24 @@ static void translate_VarDec(syntax_tree *tree)
     AssertNotNull(sem->sym);
     AssertNotNull(sem->sym->tp);
 
+    irvar *var = new_var();
+
     switch (sem->sym->tp->cls)
     {
     case TC_STRUCT:
-        //TODO struct dec
-        break;
+    {
+        int sz = type_sizeof(sem->sym->tp);
+        gen_dec(op_var(var), sz);
+    }
+    break;
     case TC_ARRAY:
-        //TODO arr dec
-        break;
+    {
+        int sz = type_sizeof(sem->sym->tp);
+        gen_dec(op_var(var), sz);
+    }
+    break;
     case TC_META:
-        sem->sym->ir = new_var();
+        sem->sym->ir = var;
         break;
     default:
         panic("unexpect dec type %d.", sem->sym->tp->cls);
