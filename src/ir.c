@@ -241,7 +241,8 @@ static void translate_DefList(syntax_tree *tree);
 static void translate_Def(syntax_tree *tree);
 static void translate_DecList(syntax_tree *tree);
 static void translate_Dec(syntax_tree *tree);
-static void translate_Exp(syntax_tree *tree);
+static void translate_Exp(syntax_tree *tree, irvar *target);
+static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *false_label);
 static void translate_Args(syntax_tree *tree);
 #pragma endregion
 
@@ -342,9 +343,6 @@ static void translate_VarDec(syntax_tree *tree)
     AssertNotNull(tree->sem);
 
     SES_VarDec *sem = cast(SES_VarDec, tree->sem);
-
-    AssertNotNull(sem->sym);
-    AssertNotNull(sem->sym->tp);
 
     irvar *var = new_var();
 
@@ -492,294 +490,295 @@ static void translate_Dec(syntax_tree *tree)
     translate_VarDec(tree->children[0]);
     if (tree->count > 1)
     {
-        // TODO
-        // translate_Exp(tree->children[2]);
+        SES_VarDec *sem = cast(SES_VarDec, tree->children[0]->sem);
+        AssertNotNull(sem->sym->ir);
+        irvar *var = cast(irvar, sem->sym->ir);
+        translate_Exp(tree->children[2], var);
     }
 }
+static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *false_label)
+{
+}
+static void translate_Exp(syntax_tree *tree, irvar *target)
+{
+    ir_log(tree->first_line, "%s", "Exp");
+    // Exp : Exp ASSIGNOP Exp
+    //     | Exp AND Exp
+    //     | Exp OR Exp
+    //     | Exp RELOP Exp
+    //     | Exp PLUS Exp
+    //     | Exp MINUS Exp
+    //     | Exp STAR Exp
+    //     | Exp DIV Exp
+    //     | LP Exp RP
+    //     | MINUS Exp %prec NEG
+    //     | NOT Exp
+    //     | ID LP Args RP
+    //     | ID LP RP
+    //     | Exp LB Exp RB
+    //     | Exp DOT ID
+    //     | ID
+    //     | INT
+    //     | FLOAT
+    //     ;
+    AssertEq(tree->type, ST_Exp);
+    AssertNotNull(tree->sem);
+    SES_Exp *sem = cast(SES_Exp, tree->sem);
 
-// static void translate_Exp(syntax_tree *tree)
-// {
-//     ir_log(tree->first_line, "%s", "Exp");
-//     // Exp : Exp ASSIGNOP Exp
-//     //     | Exp AND Exp
-//     //     | Exp OR Exp
-//     //     | Exp RELOP Exp
-//     //     | Exp PLUS Exp
-//     //     | Exp MINUS Exp
-//     //     | Exp STAR Exp
-//     //     | Exp DIV Exp
-//     //     | LP Exp RP
-//     //     | MINUS Exp %prec NEG
-//     //     | NOT Exp
-//     //     | ID LP Args RP
-//     //     | ID LP RP
-//     //     | Exp LB Exp RB
-//     //     | Exp DOT ID
-//     //     | ID
-//     //     | INT
-//     //     | FLOAT
-//     //     ;
-//     AssertEq(tree->type, ST_Exp);
+    switch (tree->count)
+    {
+    case 1:
+        switch (tree->children[0]->type)
+        {
+        case ST_INT: // INT
+        {
+            gen_assign(op_var(target), op_const(*cast(sytd_int, tree->children[0]->data)));
+        }
+        break;
+        case ST_FLOAT: // FLOAT
+        {
+            panic("No support float");
+        }
+        break;
+        case ST_ID: // ID
+        {
+            // symbol *val = get_symbol_by_id(tree->children[0]);
+            // if (val == NULL)
+            // {
+            //     error_var_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
+            //     tag->tp = new_type_never();
+            // }
+            // else
+            // {
+            //     tag->tp = val->tp;
+            // }
+        }
+        break;
+        }
+        break;
+    case 2:
+    {
+        // void exp = translate_Exp(tree->children[1]);
+        switch (tree->children[0]->type)
+        {
+        case ST_MINUS: // MINUS Exp
+            // if (!type_can_arithmetic(exp->tp))
+            //     error_op_type(tree->children[1]->first_line);
+            // tag->tp = exp->tp;
+            break;
+        case ST_NOT: // NOT Exp
+        {
+            // if (!type_can_logic(exp->tp))
+            //     error_op_type(tree->children[1]->first_line);
+            // tag->tp = exp->tp;
+        }
+        break;
+        default:
+            panic("unexpect exp");
+            break;
+        }
+    }
+    break;
+    case 3:
+    {
+        switch (tree->children[0]->type)
+        {
+        case ST_LP: // LP Exp RP
+        {
+            // void exp = translate_Exp(tree->children[1]);
+            // tag->tp = exp->tp;
+        }
+        break;
+        case ST_ID: // ID LP RP
+        {
+            // symbol *val = get_symbol_by_id(tree->children[0]);
+            // if (val == NULL)
+            // {
+            //     error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
+            //     tag->tp = new_type_never();
+            // }
+            // else if (!type_can_call(val->tp))
+            // {
+            //     error_call(tree->first_line);
+            //     tag->tp = new_type_never();
+            // }
+            // else
+            // {
+            //     if (val->tp->argc != 0)
+            //         error_call_type(tree->first_line);
+            //     tag->tp = val->tp->ret;
+            // }
+        }
+        break;
+        default:
+            switch (tree->children[1]->type)
+            {
+            case ST_DOT: // Exp DOT ID
+            {
+                // void exp = translate_Exp(tree->children[0]);
+                // char *name = *cast(sytd_id, tree->children[2]->data);
+                // if (!type_can_member(exp->tp))
+                // {
+                //     error_member(tree->first_line);
+                //     tag->tp = new_type_never();
+                // }
+                // else
+                // {
+                //     symbol *member = type_can_membername(exp->tp, name);
+                //     if (member == NULL)
+                //     {
+                //         error_member_nodef(tree->children[2]->first_line, name);
+                //         tag->tp = new_type_never();
+                //     }
+                //     else
+                //     {
+                //         tag->tp = member->tp;
+                //     }
+                // }
+            }
+            break;
+            case ST_AND: // Exp AND Exp, Exp OR Exp
+            case ST_OR:
+            {
+                // tag = new (SES_Exp);
+                // void exp1 = translate_Exp(tree->children[0]);
+                // void exp2 = translate_Exp(tree->children[2]);
+                // if (!type_can_logic(exp1->tp))
+                // {
+                //     error_op_type(tree->children[0]->first_line);
+                //     tag->tp = new_type_meta(MT_INT);
+                // }
+                // else if (!type_can_logic(exp2->tp))
+                // {
+                //     error_op_type(tree->children[2]->first_line);
+                //     tag->tp = new_type_meta(MT_INT);
+                // }
+                // else
+                // {
+                //     tag->tp = exp1->tp;
+                // }
+            }
+            break;
+            case ST_ASSIGNOP: // Exp ASSIGNOP Exp
+            {
+                // tag = new (SES_Exp);
+                // void exp1 = translate_Exp(tree->children[0]);
+                // void exp2 = translate_Exp(tree->children[2]);
 
-//     void tag = new (SES_Exp);
-
-//     switch (tree->count)
-//     {
-//     case 1:
-//         switch (tree->children[0]->type)
-//         {
-//         case ST_INT: // INT
-//         {
-//             tag->tp = new_type_meta(MT_INT);
-//         }
-//         break;
-//         case ST_FLOAT: // FLOAT
-//         {
-//             tag->tp = new_type_meta(MT_FLOAT);
-//         }
-//         break;
-//         case ST_ID: // ID
-//         {
-//             symbol *val = get_symbol_by_id(tree->children[0]);
-//             if (val == NULL)
-//             {
-//                 error_var_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
-//                 tag->tp = new_type_never();
-//             }
-//             else
-//             {
-//                 tag->tp = val->tp;
-//             }
-//         }
-//         break;
-//         }
-//         break;
-//     case 2:
-//     {
-//         void exp = translate_Exp(tree->children[1]);
-//         switch (tree->children[0]->type)
-//         {
-//         case ST_MINUS: // MINUS Exp
-//             if (!type_can_arithmetic(exp->tp))
-//                 error_op_type(tree->children[1]->first_line);
-//             tag->tp = exp->tp;
-//             break;
-//         case ST_NOT: // NOT Exp
-//         {
-//             if (!type_can_logic(exp->tp))
-//                 error_op_type(tree->children[1]->first_line);
-//             tag->tp = exp->tp;
-//         }
-//         break;
-//         default:
-//             panic("unexpect exp");
-//             break;
-//         }
-//     }
-//     break;
-//     case 3:
-//     {
-//         switch (tree->children[0]->type)
-//         {
-//         case ST_LP: // LP Exp RP
-//         {
-//             void exp = translate_Exp(tree->children[1]);
-//             tag->tp = exp->tp;
-//         }
-//         break;
-//         case ST_ID: // ID LP RP
-//         {
-//             symbol *val = get_symbol_by_id(tree->children[0]);
-//             if (val == NULL)
-//             {
-//                 error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
-//                 tag->tp = new_type_never();
-//             }
-//             else if (!type_can_call(val->tp))
-//             {
-//                 error_call(tree->first_line);
-//                 tag->tp = new_type_never();
-//             }
-//             else
-//             {
-//                 if (val->tp->argc != 0)
-//                     error_call_type(tree->first_line);
-//                 tag->tp = val->tp->ret;
-//             }
-//         }
-//         break;
-//         default:
-//             switch (tree->children[1]->type)
-//             {
-//             case ST_DOT: // Exp DOT ID
-//             {
-//                 void exp = translate_Exp(tree->children[0]);
-//                 char *name = *cast(sytd_id, tree->children[2]->data);
-//                 if (!type_can_member(exp->tp))
-//                 {
-//                     error_member(tree->first_line);
-//                     tag->tp = new_type_never();
-//                 }
-//                 else
-//                 {
-//                     symbol *member = type_can_membername(exp->tp, name);
-//                     if (member == NULL)
-//                     {
-//                         error_member_nodef(tree->children[2]->first_line, name);
-//                         tag->tp = new_type_never();
-//                     }
-//                     else
-//                     {
-//                         tag->tp = member->tp;
-//                     }
-//                 }
-//             }
-//             break;
-//             case ST_AND: // Exp AND Exp, Exp OR Exp
-//             case ST_OR:
-//             {
-//                 tag = new (SES_Exp);
-//                 void exp1 = translate_Exp(tree->children[0]);
-//                 void exp2 = translate_Exp(tree->children[2]);
-//                 if (!type_can_logic(exp1->tp))
-//                 {
-//                     error_op_type(tree->children[0]->first_line);
-//                     tag->tp = new_type_meta(MT_INT);
-//                 }
-//                 else if (!type_can_logic(exp2->tp))
-//                 {
-//                     error_op_type(tree->children[2]->first_line);
-//                     tag->tp = new_type_meta(MT_INT);
-//                 }
-//                 else
-//                 {
-//                     tag->tp = exp1->tp;
-//                 }
-//             }
-//             break;
-//             case ST_ASSIGNOP: // Exp ASSIGNOP Exp
-//             {
-//                 tag = new (SES_Exp);
-//                 void exp1 = translate_Exp(tree->children[0]);
-//                 void exp2 = translate_Exp(tree->children[2]);
-
-//                 bool isrval = true;
-//                 if (tree->children[0]->count == 1 && tree->children[0]->children[0]->type == ST_ID)
-//                     isrval = false;
-//                 else if (tree->children[0]->count == 4 && tree->children[0]->children[1]->type == ST_LB)
-//                     isrval = false;
-//                 else if (tree->children[0]->count == 3 && tree->children[0]->children[1]->type == ST_DOT)
-//                     isrval = false;
-//                 if (isrval)
-//                 {
-//                     error_assign_rval(tree->first_line);
-//                     tag->tp = new_type_never();
-//                 }
-//                 else if (!type_full_eq(exp1->tp, exp2->tp, false))
-//                 {
-//                     error_assign_type(tree->first_line);
-//                     tag->tp = new_type_never();
-//                 }
-//                 else
-//                 {
-//                     tag->tp = exp1->tp;
-//                 }
-//             }
-//             break;
-//             default: // PLUS, MINUS, ...
-//             {
-//                 tag = new (SES_Exp);
-//                 void exp1 = translate_Exp(tree->children[0]);
-//                 void exp2 = translate_Exp(tree->children[2]);
-//                 if (!type_can_arithmetic(exp1->tp))
-//                 {
-//                     error_op_type(tree->children[0]->first_line);
-//                     tag->tp = new_type_meta(MT_INT);
-//                 }
-//                 else if (!type_can_arithmetic(exp2->tp))
-//                 {
-//                     error_op_type(tree->children[2]->first_line);
-//                     tag->tp = new_type_meta(MT_INT);
-//                 }
-//                 else if (!type_can_arithmetic2(exp1->tp, exp2->tp))
-//                 {
-//                     error_op_type(tree->children[2]->first_line);
-//                     tag->tp = new_type_meta(MT_INT);
-//                 }
-//                 else
-//                 {
-//                     tag->tp = exp1->tp;
-//                 }
-//             }
-//             break;
-//             }
-//             break;
-//         }
-//     }
-//     break;
-//     case 4:
-//     {
-//         if (tree->children[0]->type == ST_ID) // ID LP Args RP
-//         {
-//             symbol *val = get_symbol_by_id(tree->children[0]);
-//             void args = translate_Args(tree->children[2]);
-//             tag = new (SES_Exp);
-//             if (val == NULL)
-//             {
-//                 error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
-//                 tag->tp = new_type_never();
-//             }
-//             else if (!type_can_call(val->tp))
-//             {
-//                 error_call(tree->first_line);
-//                 tag->tp = new_type_never();
-//             }
-//             else
-//             {
-//                 int i = 0;
-//                 while (args != NULL && i < val->tp->argc)
-//                 {
-//                     if (!type_full_eq(args->tp, val->tp->args[i], false))
-//                     {
-//                         error_call_type(args->lineno);
-//                     }
-//                     args = args->next;
-//                     i++;
-//                 }
-//                 if (args != NULL || i != val->tp->argc)
-//                 {
-//                     error_call_type(tree->first_line);
-//                 }
-//                 tag->tp = val->tp->ret;
-//             }
-//         }
-//         else // Exp LB Exp RB
-//         {
-//             tag = new (SES_Exp);
-//             void exp1 = translate_Exp(tree->children[0]);
-//             void exp2 = translate_Exp(tree->children[2]);
-//             if (exp2->tp->cls != TC_META || exp2->tp->metatype != MT_INT)
-//             {
-//                 error_index_arg(tree->children[2]->first_line);
-//                 tag->tp = type_array_descending(exp1->tp);
-//             }
-//             else if (!type_can_index(exp1->tp))
-//             {
-//                 error_index(tree->first_line);
-//                 tag->tp = new_type_any();
-//             }
-//             else
-//             {
-//                 tag->tp = type_array_descending(exp1->tp);
-//             }
-//         }
-//     }
-//     break;
-//     }
-//     tag->lineno = tree->first_line;
-//     tree->sem = tag;
-//     return tag;
-// }
+                // bool isrval = true;
+                // if (tree->children[0]->count == 1 && tree->children[0]->children[0]->type == ST_ID)
+                //     isrval = false;
+                // else if (tree->children[0]->count == 4 && tree->children[0]->children[1]->type == ST_LB)
+                //     isrval = false;
+                // else if (tree->children[0]->count == 3 && tree->children[0]->children[1]->type == ST_DOT)
+                //     isrval = false;
+                // if (isrval)
+                // {
+                //     error_assign_rval(tree->first_line);
+                //     tag->tp = new_type_never();
+                // }
+                // else if (!type_full_eq(exp1->tp, exp2->tp, false))
+                // {
+                //     error_assign_type(tree->first_line);
+                //     tag->tp = new_type_never();
+                // }
+                // else
+                // {
+                //     tag->tp = exp1->tp;
+                // }
+            }
+            break;
+            default: // PLUS, MINUS, ...
+            {
+                // tag = new (SES_Exp);
+                // void exp1 = translate_Exp(tree->children[0]);
+                // void exp2 = translate_Exp(tree->children[2]);
+                // if (!type_can_arithmetic(exp1->tp))
+                // {
+                //     error_op_type(tree->children[0]->first_line);
+                //     tag->tp = new_type_meta(MT_INT);
+                // }
+                // else if (!type_can_arithmetic(exp2->tp))
+                // {
+                //     error_op_type(tree->children[2]->first_line);
+                //     tag->tp = new_type_meta(MT_INT);
+                // }
+                // else if (!type_can_arithmetic2(exp1->tp, exp2->tp))
+                // {
+                //     error_op_type(tree->children[2]->first_line);
+                //     tag->tp = new_type_meta(MT_INT);
+                // }
+                // else
+                // {
+                //     tag->tp = exp1->tp;
+                // }
+            }
+            break;
+            }
+            break;
+        }
+    }
+    break;
+    case 4:
+    {
+        if (tree->children[0]->type == ST_ID) // ID LP Args RP
+        {
+            // symbol *val = get_symbol_by_id(tree->children[0]);
+            // void args = translate_Args(tree->children[2]);
+            // tag = new (SES_Exp);
+            // if (val == NULL)
+            // {
+            //     error_func_nodef(tree->first_line, *cast(sytd_id, tree->children[0]->data));
+            //     tag->tp = new_type_never();
+            // }
+            // else if (!type_can_call(val->tp))
+            // {
+            //     error_call(tree->first_line);
+            //     tag->tp = new_type_never();
+            // }
+            // else
+            // {
+            //     int i = 0;
+            //     while (args != NULL && i < val->tp->argc)
+            //     {
+            //         if (!type_full_eq(args->tp, val->tp->args[i], false))
+            //         {
+            //             error_call_type(args->lineno);
+            //         }
+            //         args = args->next;
+            //         i++;
+            //     }
+            //     if (args != NULL || i != val->tp->argc)
+            //     {
+            //         error_call_type(tree->first_line);
+            //     }
+            //     tag->tp = val->tp->ret;
+            // }
+        }
+        else // Exp LB Exp RB
+        {
+            // tag = new (SES_Exp);
+            // void exp1 = translate_Exp(tree->children[0]);
+            // void exp2 = translate_Exp(tree->children[2]);
+            // if (exp2->tp->cls != TC_META || exp2->tp->metatype != MT_INT)
+            // {
+            //     error_index_arg(tree->children[2]->first_line);
+            //     tag->tp = type_array_descending(exp1->tp);
+            // }
+            // else if (!type_can_index(exp1->tp))
+            // {
+            //     error_index(tree->first_line);
+            //     tag->tp = new_type_any();
+            // }
+            // else
+            // {
+            //     tag->tp = type_array_descending(exp1->tp);
+            // }
+        }
+    }
+    break;
+    }
+}
 // static void translate_Args(syntax_tree *tree)
 // {
 //     ir_log(tree->first_line, "%s", "Args");
