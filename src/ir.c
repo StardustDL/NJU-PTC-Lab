@@ -422,17 +422,25 @@ static void translate_Stmt(syntax_tree *tree)
     break;
     case ST_IF:
     {
-        // TODO
-        // void exp = translate_Exp(tree->children[2]);
-        // if (!type_can_logic(exp->tp))
-        //     error_op_type(tree->children[2]->first_line);
-        // if (tree->count == 7) // IF LP Exp RP Stmt ELSE Stmt
-        // {
-        //     translate_Stmt(tree->children[4]);
-        //     translate_Stmt(tree->children[6]);
-        // }
-        // else // IF LP Exp RP Stmt
-        //     translate_Stmt(tree->children[4]);
+        if (tree->count == 7) // IF LP Exp RP Stmt ELSE Stmt
+        {
+            irlabel *lt = new_label(), *lf = new_label(), *le = new_label();
+            translate_Cond(tree->children[2], lt, lf);
+            gen_label(lt);
+            gen_goto(le);
+            translate_Stmt(tree->children[4]);
+            gen_label(lf);
+            translate_Stmt(tree->children[6]);
+            gen_label(le);
+        }
+        else // IF LP Exp RP Stmt
+        {
+            irlabel *lt = new_label(), *lf = new_label();
+            translate_Cond(tree->children[2], lt, lf);
+            gen_label(lt);
+            translate_Stmt(tree->children[4]);
+            gen_label(lf);
+        }
     }
     break;
     case ST_WHILE: // WHILE LP Exp RP Stmt
@@ -579,7 +587,6 @@ static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *fals
     break;
     }
     // default exp
-    panic("");
     irvar *v1 = new_var();
     translate_Exp(tree, v1);
     gen_branch(RT_NE, op_var(v1), op_const(0), true_label);
