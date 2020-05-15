@@ -128,6 +128,7 @@ typedef struct
     char name[64];
     bool isref;
     int usedTime;
+    int assignTime;
     void* usedCode;
 } irvar;
 
