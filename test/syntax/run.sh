@@ -42,7 +42,7 @@ report_error(){
   CODE=-1
 }
 
-for fcmm in ./*.cmm; do
+for fcmm in ./tests/*.cmm; do
   cp $fcmm ./workdir/a.cmm
   cp ${fcmm%.cmm}.out ./workdir/a.out
 

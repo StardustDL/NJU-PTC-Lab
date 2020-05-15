@@ -2,10 +2,13 @@
 
 RED='\033[0;31m'
 NC='\033[0m'
-PYTHON='python'
-CC='gcc'
+BOLD=$(tput bold)
+NORMAL=$(tput sgr0)
 
 cd $(dirname $0)
+
+echo "Making(Updating) irsim"
+make -C irsim
 
 if ! [ -z $1 ]
 then
@@ -13,7 +16,6 @@ then
 fi
 
 RUN=$1
-CODE=0
 
 if [ -e ./workdir/saved_binary.sh ]
 then
@@ -34,99 +36,47 @@ then
   exit 0
 fi
 
-mkdir -p ./workdir
-
 echo "RUN=$RUN" > ./workdir/saved_binary.sh
 
+mkdir -p ./workdir
+
+CODE=0
+
 report_error(){
-  echo -e "${RED}test [$(basename $fcmm)]" "$1" "${NC}"
+  echo -e "${RED}${BOLD}test [$(basename $fcmm)]" "$1" "${NC}${NORMAL}"
   CODE=-1
 }
 
-for fcmm in ./*.cmm; do
+if timeout --help > /dev/null 2>&1; then #if has `timeout` command
+    PREFIX="timeout 10 ";
+else
+    echo "timeout command is not support in current environment"
+    echo "running time will not be counted"
+    PREFIX="";
+fi;
+
+echo 0 > workdir/count
+for fcmm in ./tests/*.cmm; do
   cp $fcmm ./workdir/a.cmm
-  cp ${fcmm%.cmm}.in ./workdir/a.in
-  cp template.c ./workdir/template.c
+  cp ${fcmm%.cmm}.json ./workdir/a.json
 
-  if timeout --help > /dev/null 2>&1; then #if has `timeout` command
-    timeout 5 $RUN ./workdir/a.cmm ./workdir/a.ir --ir
-    ec=$?
-    if [[ $ec -eq 124 ]]; then
-      report_error "Time Limit Error when compile"
-      continue
-    elif [[ $ec -eq 0 ]]; then
-      true
-    elif [[ $ec -eq 1 ]]; then
-      true
-    else
-      report_error "Runtime Error when compile"
-      continue
-    fi
+  if $PREFIX $RUN ./workdir/a.cmm  ./workdir/a.ir 2>&1; then
+      true; #do nothing
   else
-    $RUN ./workdir/a.cmm ./workdir/a.ir --ir
-    ec=$?
-    if [[ $ec -eq 0 ]]; then
-      true
-    elif [[ $ec -eq 1 ]]; then
-      true
-    else
-      report_error "Runtime Error when compile"
+      report_error "RE or TLE"
       continue
-    fi
-  fi
+  fi;
 
-  if timeout --help > /dev/null 2>&1; then #if has `timeout` command
-    timeout 5 $CC ./workdir/template.c -o ./workdir/std.out
-    ec=$?
-    if [[ $ec -eq 124 ]]; then
-      report_error "Time Limit Error when compile by GCC"
-      continue
-    elif [[ $ec -eq 0 ]]; then
-      ./workdir/std.out < ./workdir/a.in > ./workdir/ans.out
-    else
-      report_error "Runtime Error when compile by GCC"
-      continue
-    fi
-  else
-    $CC ./workdir/template.c -o ./workdir/std.out
-    ec=$?
-    if [[ $ec -eq 0 ]]; then
-      ./workdir/std.out < ./workdir/a.in > ./workdir/ans.out
-    else
-      report_error "Runtime Error when compile by GCC"
-      continue
-    fi
-  fi
-
-  if timeout --help > /dev/null 2>&1; then #if has `timeout` command
-    timeout 8 $PYTHON ./irsim.py ./workdir/a.ir < ./workdir/a.in > ./workdir/a.out
-    ec=$?
-    if [[ $ec -eq 124 ]]; then
-      report_error "Time Limit Error when execute IR"
-      continue
-    elif [[ $ec -eq 0 ]]; then
-      true
-    else
-      report_error "Runtime Error when execute IR"
-      continue
-    fi
-  else
-    $PYTHON ./irsim.py ./workdir/a.ir < ./workdir/a.in > ./workdir/a.out
-    ec=$?
-    if [[ $ec -eq 0 ]]; then
-      true
-    else
-      report_error "Runtime Error when execute IR"
-      continue
-    fi
-  fi
-
-  if diff ./workdir/ans.out ./workdir/a.out --strip-trailing-cr > /dev/null; then
+  if $PREFIX python3 ./check.py; then
     echo test [$(basename $fcmm)] matched
   else
-    diff ./workdir/ans.out ./workdir/a.out --strip-trailing-cr | head -10
-    report_error "mismatch"
+    report_error "mismatch or TLE"
+    continue
   fi
 done
+
+echo -n "irsim executes about "
+cat workdir/count
+echo " instructions"
 
 exit $CODE
