@@ -6,7 +6,7 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ubuntu-16.04]
+        os: [ubuntu-16.04, ubuntu-18.04]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -14,6 +14,7 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get install -yq bison flex dos2unix build-essential
+          g++ --version
           dos2unix $(find -name '*.sh')
           chmod +x $(find -name '*.sh')
       - name: Build

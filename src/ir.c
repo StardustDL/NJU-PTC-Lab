@@ -833,6 +833,10 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
 
                 gen_assign(op_var(offset), op_ref(var));
             }
+            else
+            {
+                translate_Exp(tree->children[0], offset); // offset must be a address
+            }
             // tag = new (SES_Exp);
             // void exp1 = translate_Exp(tree->children[0]);
             // void exp2 = translate_Exp(tree->children[2]);
