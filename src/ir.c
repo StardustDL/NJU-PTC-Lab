@@ -500,6 +500,78 @@ static void translate_Dec(syntax_tree *tree)
 }
 static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *false_label)
 {
+    ir_log(tree->first_line, "%s", "Exp");
+    // Exp : Exp ASSIGNOP Exp
+    //     | Exp AND Exp
+    //     | Exp OR Exp
+    //     | Exp RELOP Exp
+    //     | Exp PLUS Exp
+    //     | Exp MINUS Exp
+    //     | Exp STAR Exp
+    //     | Exp DIV Exp
+    //     | LP Exp RP
+    //     | MINUS Exp %prec NEG
+    //     | NOT Exp
+    //     | ID LP Args RP
+    //     | ID LP RP
+    //     | Exp LB Exp RB
+    //     | Exp DOT ID
+    //     | ID
+    //     | INT
+    //     | FLOAT
+    //     ;
+    AssertEq(tree->type, ST_Exp);
+    AssertNotNull(tree->sem);
+    SES_Exp *sem = cast(SES_Exp, tree->sem);
+
+    switch (tree->count)
+    {
+    case 2:
+    {
+        switch (tree->children[0]->type)
+        {
+        case ST_NOT: // NOT Exp
+        {
+        }
+        break;
+        default:
+            panic("unexpect cond exp");
+            break;
+        }
+    }
+    break;
+    case 3:
+    {
+        switch (tree->children[1]->type)
+        {
+        case ST_AND: // Exp AND Exp
+        {
+        }
+        break;
+        case ST_OR: // Exp OR Exp
+        {
+            // For later
+        }
+        break;
+        case ST_RELOP:
+        {
+            irvar *v1 = new_var(), *v2 = new_var();
+            translate_Exp(tree->children[0], v1);
+            translate_Exp(tree->children[2], v2);
+
+            relop_type rt = *cast(sytd_relop, tree->children[1]->data);
+            gen_branch(rt, op_var(v1), op_var(v2), true_label);
+            gen_goto(false_label);
+        }
+        break;
+        default:
+            panic("unexpect cond exp");
+        }
+    }
+    break;
+    default:
+        panic("unexpect cond exp");
+    }
 }
 static void translate_Exp(syntax_tree *tree, irvar *target)
 {
@@ -586,6 +658,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         break;
         case ST_ID: // ID LP RP
         {
+            // TODO
             // symbol *val = get_symbol_by_id(tree->children[0]);
             // if (val == NULL)
             // {
@@ -610,6 +683,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             {
             case ST_DOT: // Exp DOT ID
             {
+                // TODO
                 // void exp = translate_Exp(tree->children[0]);
                 // char *name = *cast(sytd_id, tree->children[2]->data);
                 // if (!type_can_member(exp->tp))
@@ -634,6 +708,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
             break;
             case ST_AND: // Exp AND Exp, Exp OR Exp
             case ST_OR:
+            case ST_RELOP:
             {
                 // For later
             }
@@ -698,6 +773,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
     {
         if (tree->children[0]->type == ST_ID) // ID LP Args RP
         {
+            // TODO
             // symbol *val = get_symbol_by_id(tree->children[0]);
             // void args = translate_Args(tree->children[2]);
             // tag = new (SES_Exp);
@@ -732,6 +808,7 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         }
         else // Exp LB Exp RB
         {
+            // TODO
             // tag = new (SES_Exp);
             // void exp1 = translate_Exp(tree->children[0]);
             // void exp2 = translate_Exp(tree->children[2]);
@@ -752,6 +829,19 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
         }
     }
     break;
+    }
+    if (tree->count == 1 && tree->children[0]->type == ST_NOT ||
+        tree->count == 3 && (tree->children[1]->type == ST_AND || tree->children[1]->type == ST_OR || tree->children[1]->type == ST_RELOP))
+    {
+        irlabel *t = new_label(), *f = new_label();
+        gen_assign(op_var(target), op_const(0));
+
+        translate_Cond(tree, t, f);
+
+        gen_label(t);
+        gen_assign(op_var(target), op_const(1));
+
+        gen_label(f);
     }
 }
 // static void translate_Args(syntax_tree *tree)
