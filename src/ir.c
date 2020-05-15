@@ -16,7 +16,7 @@ static list *irs = NULL;
 
 static void push_ircode(ircode *code)
 {
-    list_pushfront(irs, code);
+    irs = list_pushfront(irs, code);
 }
 
 static irvar *new_var()
@@ -945,7 +945,7 @@ void ir_log(int lineno, char *format, ...)
 
 #endif
 
-    Info("Line %d: %s\n", lineno, ir_buffer);
+    Info("Line %d: %s", lineno, ir_buffer);
 }
 
 void ir_prepare()
@@ -957,6 +957,9 @@ void ir_prepare()
 ast *ir_translate(syntax_tree *tree)
 {
     ast *result = new (ast);
+
+    gen_label(new_label());
+
     result->len = list_len(irs);
     result->codes = list_revto_arr(irs);
     return result;
@@ -988,6 +991,7 @@ void printOprand(irop *op, FILE *file)
 
 void ir_linearise(ast *tree, FILE *file)
 {
+    ir_log(0, "ir.len: %d", tree->len);
     for (int i = 0; i < tree->len; i++)
     {
         ircode *code = cast(ircode, tree->codes[i]);

@@ -123,8 +123,11 @@ int main(int argc, char **argv)
         return 1;
 
     FILE *irfile = get_ir_file(argc, argv);
+
     ir_linearise(at, irfile);
-    fclose(irfile);
+
+    if (irfile != stdout)
+        fclose(irfile);
 
     if (strcmp(option, "--ir") == 0)
         return 0;
