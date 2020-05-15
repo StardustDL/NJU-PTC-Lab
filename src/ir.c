@@ -1,3 +1,5 @@
+// #define DEBUG
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -230,6 +232,7 @@ static void gen_write(irop *write)
 static void translate_Program(syntax_tree *tree);
 static void translate_ExtDefList(syntax_tree *tree);
 static void translate_ExtDef(syntax_tree *tree);
+static void translate_FunDec(syntax_tree *tree);
 static void translate_VarDec(syntax_tree *tree);
 static void translate_CompSt(syntax_tree *tree);
 static void translate_StmtList(syntax_tree *tree);
@@ -285,26 +288,7 @@ static void translate_ExtDef(syntax_tree *tree)
     break;
     case ST_FunDec:
     {
-        SES_FunDec *sf = cast(SES_FunDec, tree->children[1]->sem);
-        symbol *sym = st_find(tree->ev->syms, sf->sym->name);
-        AssertNotNull(sym);
-
-        irlabel *label = new_named_label(sym->name);
-        sym->ir = label;
-        gen_func(label);
-        int i = 0;
-        env *subev = tree->children[2]->ev;
-        while (i < sym->tp->argc)
-        {
-            char *paramname = sym->tp->args[i]->name;
-            symbol *param = st_findonly(subev->syms, paramname);
-            AssertNotNull(param);
-            irvar *var = new_var();
-            param->ir = var;
-
-            gen_param(op_var(var));
-            i++;
-        }
+        translate_FunDec(tree->children[1]);
 
         if (tree->children[2]->type == ST_CompSt) // function definition
         {
@@ -318,67 +302,65 @@ static void translate_ExtDef(syntax_tree *tree)
     break;
     }
 }
-// static void translate_VarDec(syntax_tree *tree)
-// {
-//     ir_log(tree->first_line, "%s", "VarDec");
-//     // VarDec : ID
-//     //     | VarDec LB INT RB
-//     //     ;
-//     AssertEq(tree->type, ST_VarDec);
-//     AssertNotNull(ev->declare_type);
-//     bool invardec = ev->in_vardec;
-//     if (tree->count == 1)
-//     {
-//         char *name = *cast(sytd_id, tree->children[0]->data);
-//         void tag = new (SES_VarDec);
-//         if (invardec)
-//         {
-//             tag->sym = new_symbol(name, tree->first_line, NULL, SS_DEC);
-//         }
-//         else
-//         {
-//             tag->sym = new_symbol(name, tree->first_line->declare_type, SS_DEC);
-//         }
-//         tag->lineno = tree->first_line;
-//         tree->sem = tag;
-//         return tag;
-//     }
-//     else
-//     {
-//         ev->in_vardec = true;
-//         void subvar = translate_VarDec(tree->children[0]);
-//         ev->in_vardec = invardec;
-//         subvar->lens = list_pushfront(subvar->lens, cast(sytd_int, tree->children[2]->data));
-//         subvar->lineno = tree->first_line;
-//         if (invardec)
-//         {
-//             tree->sem = subvar;
-//             return subvar;
-//         }
-//         else
-//         {
-//             int listlen = 0, i = 0;
-//             list *cur = subvar->lens;
-//             while (cur != NULL)
-//             {
-//                 listlen++;
-//                 cur = cur->next;
-//             }
-//             int *lens = (int *)malloc(listlen * sizeof(int));
-//             cur = subvar->lens;
-//             while (cur != NULL)
-//             {
-//                 lens[listlen - 1 - i] = *cast(sytd_int, cur->obj);
-//                 i++;
-//                 cur = cur->next;
-//             }
-//             type *arrtp = new_type_array(ev->declare_type, listlen, lens);
-//             subvar->sym->tp = arrtp;
-//             return subvar;
-//         }
-//     }
-//     panic("unexpect");
-// }
+static void translate_FunDec(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "FunDec");
+    // FunDec : ID LP VarList RP
+    //     | ID LP RP
+    //     ;
+    AssertEq(tree->type, ST_FunDec);
+    AssertNotNull(tree->sem);
+    SES_FunDec *sem = cast(SES_FunDec, tree->sem);
+    symbol *sym = st_find(tree->ev->syms, sem->sym->name);
+    AssertNotNull(sym);
+
+    irlabel *label = new_named_label(sym->name);
+    sym->ir = label;
+    gen_func(label);
+    int i = 0;
+    env *subev = sem->ev;
+    while (i < sym->tp->argc)
+    {
+        char *paramname = sym->tp->args[i]->name;
+        symbol *param = st_findonly(subev->syms, paramname);
+        AssertNotNull(param);
+        irvar *var = new_var();
+        param->ir = var;
+
+        gen_param(op_var(var));
+        i++;
+    }
+}
+static void translate_VarDec(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "VarDec");
+    // VarDec : ID
+    //     | VarDec LB INT RB
+    //     ;
+    AssertEq(tree->type, ST_VarDec);
+
+    AssertNotNull(tree->sem);
+
+    SES_VarDec *sem = cast(SES_VarDec, tree->sem);
+
+    AssertNotNull(sem->sym);
+    AssertNotNull(sem->sym->tp);
+
+    switch (sem->sym->tp->cls)
+    {
+    case TC_STRUCT:
+        //TODO struct dec
+        break;
+    case TC_ARRAY:
+        //TODO arr dec
+        break;
+    case TC_META:
+        sem->sym->ir = new_var();
+        break;
+    default:
+        panic("unexpect dec type %d.", sem->sym->tp->cls);
+    }
+}
 static void translate_CompSt(syntax_tree *tree)
 {
     ir_log(tree->first_line, "%s", "CompSt");
@@ -400,6 +382,7 @@ static void translate_StmtList(syntax_tree *tree)
 
     if (tree->count > 0)
     {
+        // TODO
         // translate_Stmt(tree->children[0]);
         translate_StmtList(tree->children[1]);
     }
@@ -465,89 +448,46 @@ static void translate_DefList(syntax_tree *tree)
 
     if (tree->count > 0)
     {
-        // translate_Def(tree->children[0]);
+        translate_Def(tree->children[0]);
         translate_DefList(tree->children[1]);
     }
 }
-// static void translate_Def(syntax_tree *tree)
-// {
-//     ir_log(tree->first_line, "%s", "Def");
-//     // Def : Specifier DecList SEMI
-//     //     ;
-//     AssertEq(tree->type, ST_Def);
+static void translate_Def(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "Def");
+    // Def : Specifier DecList SEMI
+    //     ;
+    AssertEq(tree->type, ST_Def);
 
-//     void specifier = translate_Specifier(tree->children[0]);
+    translate_DecList(tree->children[1]);
+}
+static void translate_DecList(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "DecList");
+    // DecList : Dec
+    //     | Dec COMMA DecList
+    //     ;
+    AssertEq(tree->type, ST_DecList);
 
-//     if (is_struct_specifier(specifier))
-//     {
-//         check_create_struct_specifier(specifier, tree->first_line);
+    translate_Dec(tree->children[0]);
+    if (tree->count > 1)
+        translate_DecList(tree->children[2]);
+}
+static void translate_Dec(syntax_tree *tree)
+{
+    ir_log(tree->first_line, "%s", "Dec");
+    // Dec : VarDec
+    //     | VarDec ASSIGNOP Exp
+    //     ;
+    AssertEq(tree->type, ST_Dec);
 
-//         if (!resolve_struct_specifier_dec(specifier))
-//             error_struct_nodef(tree->first_line, specifier->struct_name);
-//     }
-//     ev->declare_type = specifier->tp->tp;
-//     void decs = translate_DecList(tree->children[1]);
-//     while (decs != NULL)
-//     {
-//         symbol *existsym = st_findonly(ev->syms, decs->sym->name);
-//         symbol *existsymall = st_find(ev->syms, decs->sym->name);
-//         if (existsym != NULL)
-//         {
-//             if (ev->in_struct)
-//                 error_member_def(decs->lineno, decs->sym->name);
-//             else
-//                 error_var_redef(decs->lineno, decs->sym->name);
-//         }
-//         else if (existsymall != NULL && type_is_type(existsymall->tp))
-//         {
-//             if (ev->in_struct)
-//                 error_member_def(decs->lineno, decs->sym->name);
-//             else
-//                 error_var_redef(decs->lineno, decs->sym->name);
-//         }
-//         else
-//         {
-//             if (ev->in_struct && decs->hasinit) // init in struct
-//                 error_member_def(decs->lineno, decs->sym->name);
-//             st_add(ev->syms, decs->sym);
-//         }
-//         decs = decs->next;
-//     }
-//     ev->declare_type = NULL;
-// }
-// static void translate_DecList(syntax_tree *tree)
-// {
-//     ir_log(tree->first_line, "%s", "DecList");
-//     // DecList : Dec
-//     //     | Dec COMMA DecList
-//     //     ;
-//     AssertEq(tree->type, ST_DecList);
-
-//     void first = translate_Dec(tree->children[0]);
-//     if (tree->count > 1)
-//         first->next = translate_DecList(tree->children[2]);
-//     tree->sem = first;
-//     return first;
-// }
-// static void translate_Dec(syntax_tree *tree)
-// {
-//     ir_log(tree->first_line, "%s", "Dec");
-//     // Dec : VarDec
-//     //     | VarDec ASSIGNOP Exp
-//     //     ;
-//     AssertEq(tree->type, ST_Dec);
-
-//     void var = translate_VarDec(tree->children[0]);
-//     if (tree->count > 1)
-//     {
-//         var->hasinit = true;
-//         void exp = translate_Exp(tree->children[2]);
-//         if (!type_full_eq(var->sym->tp, exp->tp, false))
-//             error_assign_type(tree->first_line);
-//     }
-//     tree->sem = var;
-//     return var;
-// }
+    translate_VarDec(tree->children[0]);
+    if (tree->count > 1)
+    {
+        // TODO
+        // translate_Exp(tree->children[2]);
+    }
+}
 
 // static void translate_Exp(syntax_tree *tree)
 // {

@@ -487,6 +487,7 @@ static SES_VarDec *analyse_VarDec(syntax_tree *tree, env *ev)
             }
             type *arrtp = new_type_array(ev->declare_type, listlen, lens);
             subvar->sym->tp = arrtp;
+            tree->sem = subvar;
             return subvar;
         }
     }
