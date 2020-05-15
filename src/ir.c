@@ -539,7 +539,9 @@ static void translate_Dec(syntax_tree *tree)
         SES_VarDec *sem = cast(SES_VarDec, tree->children[0]->sem);
         AssertNotNull(sem->sym->ir);
         irvar *var = cast(irvar, sem->sym->ir);
-        translate_Exp(tree->children[2], var);
+        irvar *temp = new_var();
+        translate_Exp(tree->children[2], temp);
+        gen_assign(op_var(var), op_rval(temp));
     }
 }
 static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *false_label)
@@ -614,7 +616,7 @@ static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *fals
             translate_Exp(tree->children[2], v2);
 
             relop_type rt = *cast(sytd_relop, tree->children[1]->data);
-            gen_branch(rt, op_var(v1), op_var(v2), true_label);
+            gen_branch(rt, op_rval(v1), op_rval(v2), true_label);
             gen_goto(false_label);
         }
             return;
@@ -625,7 +627,7 @@ static void translate_Cond(syntax_tree *tree, irlabel *true_label, irlabel *fals
     // default exp
     irvar *v1 = new_var();
     translate_Exp(tree, v1);
-    gen_branch(RT_NE, op_var(v1), op_const(0), true_label);
+    gen_branch(RT_NE, op_rval(v1), op_const(0), true_label);
     gen_goto(false_label);
 }
 static void translate_Exp(syntax_tree *tree, irvar *target)
@@ -777,14 +779,17 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
                     AssertNotNull(val->ir);
                     irvar *var = cast(irvar, val->ir);
 
-                    translate_Exp(tree->children[2], var);
+                    irvar *temp = new_var();
+
+                    translate_Exp(tree->children[2], temp);
 
                     SES_Exp *leftSem = cast(SES_Exp, tree->children[0]->sem);
                     switch (leftSem->tp->cls)
                     {
                     case TC_META: // INT assign
                     {
-                        gen_assign(op_var(target), op_rval(var));
+                        gen_assign(op_var(var), op_rval(temp));
+                        gen_assign(op_var(target), op_var(var));
                     }
                     break;
                     case TC_STRUCT: //Struct assign
