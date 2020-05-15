@@ -45,7 +45,7 @@ static void optimizeDupVar(ast *tree)
             continue;
         if (code->kind == IR_Assign)
         {
-            if (code->assign.left->kind == IRO_Variable && code->assign.right->kind == IRO_Constant)
+            if (code->assign.left->kind == IRO_Variable)
             {
                 irvar *var = code->assign.left->var;
                 irop *value = code->assign.right;
@@ -120,6 +120,13 @@ static void optimizeDupVar(ast *tree)
 
 static void optimizeDeadAssign(ast *tree)
 {
+    for (list *l = tree->vars; l != NULL; l = l->next)
+    {
+        irvar *var = cast(irvar, l->obj);
+        var->assignTime = 0;
+        var->usedCode = NULL;
+        var->usedTime = 0;
+    }
     for (int i = 0; i < tree->len; i++)
     {
         ircode *code = cast(ircode, tree->codes[i]);
@@ -255,9 +262,14 @@ static void optimizeDeadAssign(ast *tree)
 
 int optimize(ast *tree)
 {
-    optimizeDeadAssign(tree);
-    optimizeDupLabel(tree);
-    optimizeDupVar(tree);
+    const int T = 10;
+
+    for (int i = 0; i < T; i++)
+    {
+        optimizeDeadAssign(tree);
+        optimizeDupLabel(tree);
+        optimizeDupVar(tree);
+    }
 
     int count = 0;
     for (int i = 0; i < tree->len; i++)

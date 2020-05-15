@@ -1,4 +1,5 @@
 // #define DEBUG
+#define OP_LOG
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -771,9 +772,10 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
                         sz += type_sizeof(sym->tp);
                     }
                 }
+                irvar *t1 = new_var();
 
-                gen_add(op_var(offset), op_var(offset), op_const(sz));
-                gen_assign(op_var(target), op_var(offset));
+                gen_add(op_var(t1), op_var(offset), op_const(sz));
+                gen_assign(op_var(target), op_var(t1));
                 target->isref = true;
             }
             break;
@@ -960,9 +962,11 @@ static void translate_Exp(syntax_tree *tree, irvar *target)
 
             irvar *index = new_var();
             translate_Exp(tree->children[2], index);
-            gen_mul(op_var(index), op_rval(index), op_const(sz));
-            gen_add(op_var(offset), op_var(offset), op_var(index));
-            gen_assign(op_var(target), op_var(offset));
+
+            irvar *t1 = new_var(), *t2 = new_var();
+            gen_mul(op_var(t1), op_rval(index), op_const(sz));
+            gen_add(op_var(t2), op_var(offset), op_var(t1));
+            gen_assign(op_var(target), op_var(t2));
             target->isref = true;
         }
     }
@@ -1052,7 +1056,10 @@ ast *ir_translate(syntax_tree *tree)
     result->vars = vars;
 
     int count = optimize(result);
-    ir_log(0, "Optimized %d / %d.", count, result->len);
+
+#ifdef OP_LOG
+    fprintf(stderr, "Optimized %d / %d.\n", count, result->len);
+#endif
 
     return result;
 }
