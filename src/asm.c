@@ -40,6 +40,26 @@ static reg *new_reg(int id)
     return r;
 }
 
+static reg *get_reg_ra()
+{
+    return regs[31];
+}
+
+static reg *get_reg_sp()
+{
+    return regs[29];
+}
+
+static reg *get_reg_v0()
+{
+    return regs[2];
+}
+
+static reg *get_reg_a0()
+{
+    return regs[4];
+}
+
 static void asm_out(char *format, ...)
 {
     va_list aptr;
@@ -71,12 +91,12 @@ static void gen_label(const char *name)
 
 static void gen_lw(reg *rt, reg *rs, short imm)
 {
-    asm_out_instr("lw %s, %d(%s)", reg_names[rt->id], imm, reg_names[rs->id]);
+    asm_out_instr("lw %s, %d(%s)", reg_names[rt->id], (int)imm, reg_names[rs->id]);
 }
 
 static void gen_sw(reg *rt, reg *rs, short imm)
 {
-    asm_out_instr("sw %s, %d(%s)", reg_names[rt->id], imm, reg_names[rs->id]);
+    asm_out_instr("sw %s, %d(%s)", reg_names[rt->id], (int)imm, reg_names[rs->id]);
 }
 
 static void gen_la(reg *dest, const char *addr)
@@ -86,7 +106,7 @@ static void gen_la(reg *dest, const char *addr)
 
 static void gen_li(reg *dest, int imm)
 {
-    asm_out_instr("la %s, %d", reg_names[dest->id], imm);
+    asm_out_instr("li %s, %d", reg_names[dest->id], imm);
 }
 
 static void gen_move(reg *dest, reg *src)
@@ -129,6 +149,11 @@ static void gen_add(reg *rd, reg *rs, reg *rt)
     asm_out_instr("add %s, %s, %s", reg_names[rd->id], reg_names[rs->id], reg_names[rt->id]);
 }
 
+static void gen_addi(reg *rt, reg *rs, short imm)
+{
+    asm_out_instr("addi %s, %s, %d", reg_names[rt->id], reg_names[rs->id], (int)imm);
+}
+
 static void gen_sub(reg *rd, reg *rs, reg *rt)
 {
     asm_out_instr("sub %s, %s, %s", reg_names[rd->id], reg_names[rs->id], reg_names[rt->id]);
@@ -157,6 +182,20 @@ static void gen_jal(const char *label)
 static void gen_jr(reg *r)
 {
     asm_out_instr("jr %s", reg_names[r->id]);
+}
+
+static void gen_push(reg *r)
+{
+    reg *sp = get_reg_sp();
+    gen_addi(sp, sp, -4);
+    gen_sw(r, sp, 0);
+}
+
+static void gen_pop(reg *r)
+{
+    reg *sp = get_reg_sp();
+    gen_lw(r, sp, 0);
+    gen_addi(sp, sp, 4);
 }
 
 #pragma endregion
@@ -315,8 +354,8 @@ static void rewrite_Return(ircode *code)
 {
     asm_log(0, "%s", "Return");
     reg *temp = get_reg();
-    prepare_oprand(code->ret, regs[2]); //v0
-    gen_jr(regs[31]);                   //ra
+    prepare_oprand(code->ret, get_reg_v0());
+    gen_jr(get_reg_ra());
 }
 static void rewrite_Dec(ircode *code)
 {
@@ -341,10 +380,22 @@ static void rewrite_Param(ircode *code)
 static void rewrite_Read(ircode *code)
 {
     asm_log(0, "%s", "Read");
+    reg *ra = get_reg_ra();
+    gen_push(ra);
+    gen_jal("read");
+    gen_pop(ra);
+    apply_oprand(code->read, get_reg_v0());
 }
 static void rewrite_Write(ircode *code)
 {
     asm_log(0, "%s", "Write");
+    reg *ra = get_reg_ra();
+    reg *r = get_reg();
+    prepare_oprand(code->write, r);
+    gen_move(get_reg_a0(), r);
+    gen_push(ra);
+    gen_jal("write");
+    gen_pop(ra);
 }
 
 void asm_error(int type, int lineno, char *format, ...)
@@ -409,6 +460,8 @@ static void printHeader(ast *tree)
     fputs("read:\n", asm_output);
     fputs("  li $v0, 4\n", asm_output);
     fputs("  la $a0, _prompt\n", asm_output);
+    fputs("  syscall\n", asm_output);
+    fputs("  li $v0, 5\n", asm_output);
     fputs("  syscall\n", asm_output);
     fputs("  jr $ra\n", asm_output);
     fputs("\n", asm_output);
