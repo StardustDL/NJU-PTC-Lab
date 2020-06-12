@@ -39,11 +39,11 @@ mkdir -p ./workdir
 
 report_error(){
   echo -e "${RED}${BOLD}test [$(basename $fcmm)]" "$1" "${NC}${NORMAL}"
-  read -p "Enter [c] to continue, or [Enter] to abort: " txt
-  if [ -z "$txt" ] || [ $txt != 'c' ]
-  then
-    exit 1
-  fi
+  # read -p "Enter [c] to continue, or [Enter] to abort: " txt
+  # if [ -z "$txt" ] || [ $txt != 'c' ]
+  # then
+  #   exit 1
+  # fi
 }
 
 if timeout --help > /dev/null 2>&1; then #if has `timeout` command

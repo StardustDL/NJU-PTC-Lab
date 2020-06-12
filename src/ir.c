@@ -412,7 +412,9 @@ static void translate_Stmt(syntax_tree *tree)
     {
         irvar *var = new_var();
         translate_Exp(tree->children[1], var);
-        gen_return(op_rval(var));
+        irvar *var2 = new_var();
+        gen_assign(op_var(var2), op_rval(var));
+        gen_return(op_rval(var2));
     }
     break;
     case ST_IF:

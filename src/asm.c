@@ -285,6 +285,7 @@ static void apply_oprand(irop *op, reg *r)
 
 static void gen_store_vars()
 {
+    asm_out("# store_vars");
     reg *r = get_reg();
     for (int i = 0; i < ast_tree->var_count; i++)
     {
@@ -296,6 +297,7 @@ static void gen_store_vars()
 
 static void gen_load_vars()
 {
+    asm_out("# load_vars");
     reg *r = get_reg();
     for (int i = ast_tree->var_count - 1; i >= 0; i--)
     {
@@ -396,13 +398,16 @@ static void rewrite_Branch(ircode *code)
 static void rewrite_Return(ircode *code)
 {
     asm_log(0, "%s", "Return");
-    reg *temp = get_reg();
     prepare_oprand(code->ret, get_reg_v0());
     gen_jr(get_reg_ra());
 }
 static void rewrite_Dec(ircode *code)
 {
     asm_log(0, "%s", "Dec");
+    reg *sp = get_reg_sp(), *r = get_reg();
+    gen_li(r, code->dec.size);
+    gen_sub(sp, sp, r);
+    apply_oprand(code->dec.op, sp);
 }
 static bool is_incall = false;
 static void prepare_call()
@@ -442,8 +447,8 @@ static void rewrite_Call(ircode *code)
     gen_jal(code->call.func->name);
     end_call();
     reg *res = get_reg();
-    gen_move(res, regs[2]); // v0
-    apply_var(code->call.ret->var, res);
+    gen_move(res, get_reg_v0());
+    apply_oprand(code->call.ret, res);
 }
 static void rewrite_Param(ircode *code)
 {
