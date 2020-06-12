@@ -125,6 +125,7 @@ typedef enum
 
 typedef struct
 {
+    int id;
     char name[64];
     bool isref;
     int usedTime;
@@ -197,6 +198,7 @@ typedef struct
 typedef struct
 {
     int len;
+    int var_count;
     void **codes;
     list* vars;
 } ast;

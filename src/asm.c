@@ -16,9 +16,9 @@
 void asm_log(int lineno, char *format, ...);
 
 const char *reg_names[32] = {
-    "zero", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-    "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "t8", "t9", "k0", "k1",
-    "gp", "sp", "fp", "ra"};
+    "$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7",
+    "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1",
+    "$gp", "$sp", "$fp", "$ra"};
 
 typedef struct
 {
@@ -30,6 +30,8 @@ static reg *regs[32];
 static FILE *asm_output = NULL;
 static bool asm_is_passed = false;
 static char asm_buffer[1024];
+
+#pragma region helper functions
 
 static reg *new_reg(int id)
 {
@@ -62,9 +64,165 @@ static void asm_out_instr(char *format, ...)
     fprintf(asm_output, "  %s\n", asm_buffer);
 }
 
-static void gen_label(char *name)
+static void gen_label(const char *name)
 {
     asm_out("%s:", name);
+}
+
+static void gen_lw(reg *rt, reg *rs, short imm)
+{
+    asm_out_instr("lw %s, %d(%s)", reg_names[rt->id], imm, reg_names[rs->id]);
+}
+
+static void gen_sw(reg *rt, reg *rs, short imm)
+{
+    asm_out_instr("sw %s, %d(%s)", reg_names[rt->id], imm, reg_names[rs->id]);
+}
+
+static void gen_la(reg *dest, const char *addr)
+{
+    asm_out_instr("la %s, %s", reg_names[dest->id], addr);
+}
+
+static void gen_li(reg *dest, int imm)
+{
+    asm_out_instr("la %s, %d", reg_names[dest->id], imm);
+}
+
+static void gen_move(reg *dest, reg *src)
+{
+    asm_out_instr("move %s, %s", reg_names[dest->id], reg_names[src->id]);
+}
+
+static void gen_bgt(reg *src1, reg *src2, const char *label)
+{
+    asm_out_instr("bgt %s, %s, %s", reg_names[src1->id], reg_names[src2->id], label);
+}
+
+static void gen_bge(reg *src1, reg *src2, const char *label)
+{
+    asm_out_instr("bge %s, %s, %s", reg_names[src1->id], reg_names[src2->id], label);
+}
+
+static void gen_blt(reg *src1, reg *src2, const char *label)
+{
+    asm_out_instr("blt %s, %s, %s", reg_names[src1->id], reg_names[src2->id], label);
+}
+
+static void gen_ble(reg *src1, reg *src2, const char *label)
+{
+    asm_out_instr("ble %s, %s, %s", reg_names[src1->id], reg_names[src2->id], label);
+}
+
+static void gen_beq(reg *src1, reg *src2, const char *label)
+{
+    asm_out_instr("beq %s, %s, %s", reg_names[src1->id], reg_names[src2->id], label);
+}
+
+static void gen_bne(reg *src1, reg *src2, const char *label)
+{
+    asm_out_instr("bne %s, %s, %s", reg_names[src1->id], reg_names[src2->id], label);
+}
+
+static void gen_add(reg *rd, reg *rs, reg *rt)
+{
+    asm_out_instr("add %s, %s, %s", reg_names[rd->id], reg_names[rs->id], reg_names[rt->id]);
+}
+
+static void gen_sub(reg *rd, reg *rs, reg *rt)
+{
+    asm_out_instr("sub %s, %s, %s", reg_names[rd->id], reg_names[rs->id], reg_names[rt->id]);
+}
+
+static void gen_mul(reg *rd, reg *rs, reg *rt)
+{
+    asm_out_instr("mul %s, %s, %s", reg_names[rd->id], reg_names[rs->id], reg_names[rt->id]);
+}
+
+static void gen_div(reg *rd, reg *rs, reg *rt)
+{
+    asm_out_instr("div %s, %s, %s", reg_names[rd->id], reg_names[rs->id], reg_names[rt->id]);
+}
+
+static void gen_j(const char *label)
+{
+    asm_out_instr("j %s", label);
+}
+
+static void gen_jal(const char *label)
+{
+    asm_out_instr("jal %s", label);
+}
+
+static void gen_jr(reg *r)
+{
+    asm_out_instr("jr %s", reg_names[r->id]);
+}
+
+#pragma endregion
+
+static reg *get_reg()
+{
+    static int current = 8;
+
+    reg *r = regs[current];
+    current++;
+    if (current > 25)
+        current = 8;
+    return r;
+}
+
+static void prepare_oprand(irop *op, reg *r)
+{
+    reg *temp = get_reg();
+    switch (op->kind)
+    {
+    case IRO_Variable:
+        gen_la(temp, op->var->name);
+        gen_lw(r, temp, 0);
+        break;
+    case IRO_Constant:
+        gen_li(r, op->value);
+        break;
+    case IRO_Deref:
+        gen_la(temp, op->var->name);
+        gen_lw(temp, temp, 0);
+        gen_lw(r, temp, 0);
+        break;
+    case IRO_Ref: // DEC set var's data with addr
+        gen_la(temp, op->var->name);
+        gen_lw(r, temp, 0);
+        break;
+    }
+}
+
+static void apply_var(irvar *var, reg *r)
+{
+    reg *temp = get_reg();
+    gen_la(temp, var->name);
+    gen_sw(r, temp, 0);
+}
+
+static void apply_oprand(irop *op, reg *r)
+{
+    reg *temp = get_reg();
+    switch (op->kind)
+    {
+    case IRO_Variable:
+        apply_var(op->var, r);
+        break;
+    case IRO_Constant:
+        panic("Try to apply constant oprand in left");
+        break;
+    case IRO_Deref:
+        gen_la(temp, op->var->name);
+        gen_lw(temp, temp, 0);
+        gen_sw(r, temp, 0);
+        break;
+    case IRO_Ref:
+        panic("Try to apply ref oprand in left");
+        break;
+    }
 }
 
 static void rewrite_Label(ircode *code)
@@ -80,34 +238,85 @@ static void rewrite_Func(ircode *code)
 static void rewrite_Assign(ircode *code)
 {
     asm_log(0, "%s", "Assign");
+    reg *right = get_reg();
+    prepare_oprand(code->assign.right, right);
+    apply_oprand(code->assign.left, right);
 }
 static void rewrite_Add(ircode *code)
 {
     asm_log(0, "%s", "Add");
+    reg *op1 = get_reg(), *op2 = get_reg(), *res = get_reg();
+    prepare_oprand(code->bop.op1, op1);
+    prepare_oprand(code->bop.op2, op2);
+    gen_add(res, op1, op2);
+    apply_oprand(code->bop.target, res);
 }
 static void rewrite_Sub(ircode *code)
 {
     asm_log(0, "%s", "Sub");
+    reg *op1 = get_reg(), *op2 = get_reg(), *res = get_reg();
+    prepare_oprand(code->bop.op1, op1);
+    prepare_oprand(code->bop.op2, op2);
+    gen_sub(res, op1, op2);
+    apply_oprand(code->bop.target, res);
 }
 static void rewrite_Mul(ircode *code)
 {
     asm_log(0, "%s", "Mul");
+    reg *op1 = get_reg(), *op2 = get_reg(), *res = get_reg();
+    prepare_oprand(code->bop.op1, op1);
+    prepare_oprand(code->bop.op2, op2);
+    gen_mul(res, op1, op2);
+    apply_oprand(code->bop.target, res);
 }
 static void rewrite_Div(ircode *code)
 {
     asm_log(0, "%s", "Div");
+    reg *op1 = get_reg(), *op2 = get_reg(), *res = get_reg();
+    prepare_oprand(code->bop.op1, op1);
+    prepare_oprand(code->bop.op2, op2);
+    gen_div(res, op1, op2);
+    apply_oprand(code->bop.target, res);
 }
 static void rewrite_Goto(ircode *code)
 {
     asm_log(0, "%s", "Goto");
+    gen_j(code->label->name);
 }
 static void rewrite_Branch(ircode *code)
 {
     asm_log(0, "%s", "Branch");
+    reg *op1 = get_reg(), *op2 = get_reg();
+    prepare_oprand(code->branch.op1, op1);
+    prepare_oprand(code->branch.op2, op2);
+    switch (code->branch.relop)
+    {
+    case RT_L: // >
+        gen_bgt(op1, op2, code->branch.target->name);
+        break;
+    case RT_S: // <
+        gen_blt(op1, op2, code->branch.target->name);
+        break;
+    case RT_LE: // >=
+        gen_bge(op1, op2, code->branch.target->name);
+        break;
+    case RT_SE: // <=
+        gen_ble(op1, op2, code->branch.target->name);
+        break;
+    case RT_E: // ==
+        gen_beq(op1, op2, code->branch.target->name);
+        break;
+    case RT_NE: // !=
+        gen_bne(op1, op2, code->branch.target->name);
+        break;
+    }
 }
 static void rewrite_Return(ircode *code)
 {
     asm_log(0, "%s", "Return");
+    reg *temp = get_reg();
+    prepare_oprand(code->ret, regs[2]); //v0
+    gen_jr(regs[31]);                   //ra
 }
 static void rewrite_Dec(ircode *code)
 {
@@ -120,6 +329,10 @@ static void rewrite_Arg(ircode *code)
 static void rewrite_Call(ircode *code)
 {
     asm_log(0, "%s", "Call");
+    reg *res = get_reg();
+    gen_jal(code->call.func->name);
+    gen_move(res, regs[2]); // v0
+    apply_var(code->call.ret->var, res);
 }
 static void rewrite_Param(ircode *code)
 {
@@ -179,11 +392,18 @@ bool asm_has_passed()
     return asm_is_passed;
 }
 
-static void printHeader()
+static void printHeader(ast *tree)
 {
     fputs(".data\n", asm_output);
     fputs("_prompt: .asciiz \"Enter an integer:\"\n", asm_output);
     fputs("_ret: .asciiz \"\\n\"\n", asm_output);
+
+    for (list *l = tree->vars; l != NULL; l = l->next)
+    {
+        irvar *var = cast(irvar, l->obj);
+        asm_out("%s: .word 0", var->name);
+    }
+
     fputs(".globl main\n", asm_output);
     fputs(".text\n", asm_output);
     fputs("read:\n", asm_output);
@@ -334,7 +554,7 @@ static void asm_ir_comment(ircode *code, FILE *file)
 
 void asm_generate(ast *tree)
 {
-    printHeader();
+    printHeader(tree);
     for (int i = 0; i < tree->len; i++)
     {
         ircode *code = cast(ircode, tree->codes[i]);

@@ -22,6 +22,8 @@ static irvar *ignore_var = NULL;
 
 static list *vars = NULL;
 
+static int var_count = 0;
+
 #pragma region helper functions
 
 static void push_ircode(ircode *code)
@@ -31,12 +33,11 @@ static void push_ircode(ircode *code)
 
 static irvar *new_var()
 {
-    static int count = 0;
-
-    Assert(count >= 0, "too many var");
-    count++;
+    Assert(var_count >= 0, "too many var");
+    var_count++;
     irvar *var = new (irvar);
-    sprintf(var->name, "t%d", count);
+    var->id = var_count;
+    sprintf(var->name, "t%d", var_count);
     vars = list_pushfront(vars, var);
     return var;
 }
@@ -1007,6 +1008,7 @@ ast *ir_translate(syntax_tree *tree)
     translate_Program(tree);
 
     result->len = list_len(irs);
+    result->var_count = var_count;
     result->codes = list_revto_arr(irs);
     result->vars = vars;
 
