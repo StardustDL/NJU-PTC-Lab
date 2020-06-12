@@ -130,7 +130,7 @@ typedef struct
     bool isref;
     int usedTime;
     int assignTime;
-    void* usedCode;
+    void *usedCode;
 } irvar;
 
 typedef struct
@@ -200,7 +200,7 @@ typedef struct
     int len;
     int var_count;
     void **codes;
-    list* vars;
+    list *vars;
 } ast;
 
 #endif

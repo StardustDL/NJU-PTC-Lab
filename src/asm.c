@@ -15,6 +15,11 @@
 
 void asm_log(int lineno, char *format, ...);
 
+const char *store_tvars = "bee845c68e1c_store_tvars";
+const char *load_tvars = "bee845c68e1c_load_tvars";
+static void **vars = NULL;
+static ast *ast_tree = NULL;
+
 const char *reg_names[32] = {
     "$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7",
     "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1",
@@ -38,6 +43,16 @@ static reg *new_reg(int id)
     reg *r = new (reg);
     r->id = id;
     return r;
+}
+
+static reg *get_reg_rs() // ra for var store
+{
+    return regs[24];
+}
+
+static reg *get_reg_fp()
+{
+    return regs[30];
 }
 
 static reg *get_reg_ra()
@@ -198,17 +213,22 @@ static void gen_pop(reg *r)
     gen_addi(sp, sp, 4);
 }
 
-#pragma endregion
-
 static reg *get_reg()
 {
     static int current = 8;
 
     reg *r = regs[current];
     current++;
-    if (current > 25)
+    if (current > 23)
         current = 8;
     return r;
+}
+
+static void prepare_var(irvar *var, reg *r)
+{
+    reg *temp = get_reg();
+    gen_la(temp, var->name);
+    gen_lw(r, temp, 0);
 }
 
 static void prepare_oprand(irop *op, reg *r)
@@ -217,8 +237,7 @@ static void prepare_oprand(irop *op, reg *r)
     switch (op->kind)
     {
     case IRO_Variable:
-        gen_la(temp, op->var->name);
-        gen_lw(r, temp, 0);
+        prepare_var(op->var, r);
         break;
     case IRO_Constant:
         gen_li(r, op->value);
@@ -263,6 +282,30 @@ static void apply_oprand(irop *op, reg *r)
         break;
     }
 }
+
+static void gen_store_vars()
+{
+    reg *r = get_reg();
+    for (int i = 0; i < ast_tree->var_count; i++)
+    {
+        irvar *var = cast(irvar, vars[i]);
+        prepare_var(var, r);
+        gen_push(r);
+    }
+}
+
+static void gen_load_vars()
+{
+    reg *r = get_reg();
+    for (int i = ast_tree->var_count - 1; i >= 0; i--)
+    {
+        irvar *var = cast(irvar, vars[i]);
+        gen_pop(r);
+        apply_var(var, r);
+    }
+}
+
+#pragma endregion
 
 static void rewrite_Label(ircode *code)
 {
@@ -361,21 +404,53 @@ static void rewrite_Dec(ircode *code)
 {
     asm_log(0, "%s", "Dec");
 }
+static bool is_incall = false;
+static void prepare_call()
+{
+    if (!is_incall)
+    {
+        gen_store_vars();
+        reg *ra = get_reg_ra(), *fp = get_reg_fp(), *sp = get_reg_sp();
+        gen_push(ra);
+        gen_push(fp);
+        gen_move(fp, sp);
+        is_incall = true;
+    }
+}
+static void end_call()
+{
+    Assert(is_incall, "Not incall");
+    reg *ra = get_reg_ra(), *fp = get_reg_fp(), *sp = get_reg_sp();
+    gen_move(sp, fp);
+    gen_pop(fp);
+    gen_pop(ra);
+    gen_load_vars();
+    is_incall = false;
+}
 static void rewrite_Arg(ircode *code)
 {
     asm_log(0, "%s", "Arg");
+    prepare_call();
+    reg *r = get_reg();
+    prepare_oprand(code->arg, r);
+    gen_push(r);
 }
 static void rewrite_Call(ircode *code)
 {
     asm_log(0, "%s", "Call");
-    reg *res = get_reg();
+    prepare_call();
     gen_jal(code->call.func->name);
+    end_call();
+    reg *res = get_reg();
     gen_move(res, regs[2]); // v0
     apply_var(code->call.ret->var, res);
 }
 static void rewrite_Param(ircode *code)
 {
     asm_log(0, "%s", "Param");
+    reg *r = get_reg();
+    gen_pop(r);
+    apply_oprand(code->param, r);
 }
 static void rewrite_Read(ircode *code)
 {
@@ -473,6 +548,7 @@ static void printHeader(ast *tree)
     fputs("  syscall\n", asm_output);
     fputs("  move $v0, $0\n", asm_output);
     fputs("  jr $ra\n", asm_output);
+
     fputs("\n", asm_output);
 }
 
@@ -607,6 +683,8 @@ static void asm_ir_comment(ircode *code, FILE *file)
 
 void asm_generate(ast *tree)
 {
+    ast_tree = tree;
+    vars = list_revto_arr(tree->vars);
     printHeader(tree);
     for (int i = 0; i < tree->len; i++)
     {
