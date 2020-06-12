@@ -41,3 +41,7 @@ jobs:
         run: |
           cd test/ir
           ./run.sh ../../src/parser
+      - name: Test ASM
+        run: |
+          cd test/asm
+          ./run.sh ../../src/parser

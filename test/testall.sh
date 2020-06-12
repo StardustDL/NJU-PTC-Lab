@@ -36,4 +36,13 @@ else
 fi
 cd ..
 
+echo ASM
+cd asm
+if ./run.sh ../../src/parser; then
+  true
+else
+  CODE=-1
+fi
+cd ..
+
 exit $CODE
