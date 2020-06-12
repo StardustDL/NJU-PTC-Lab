@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-// #define DCHECK
+#define DCHECK
 
 #ifdef DEBUG
 
