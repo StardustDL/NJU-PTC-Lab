@@ -1010,7 +1010,9 @@ ast *ir_translate(syntax_tree *tree)
     result->codes = list_revto_arr(irs);
     result->vars = vars;
 
+#ifdef OPTIMIZE
     int count = optimize(result);
+#endif
 
     return result;
 }
@@ -1020,7 +1022,7 @@ bool ir_has_passed()
     return ir_is_passed;
 }
 
-void printOprand(irop *op, FILE *file)
+static void printOprand(irop *op, FILE *file)
 {
     switch (op->kind)
     {

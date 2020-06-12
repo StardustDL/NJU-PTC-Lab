@@ -6,6 +6,7 @@
 #include "syntax.h"
 #include "semantics.h"
 #include "ir.h"
+#include "asm.h"
 
 static FILE *get_input_file(int argc, char **argv)
 {
@@ -26,6 +27,24 @@ static FILE *get_input_file(int argc, char **argv)
 }
 
 static FILE *get_ir_file(int argc, char **argv)
+{
+    if (argc > 2 && strncmp(argv[2], "--", 2) != 0)
+    {
+        FILE *f;
+        if (!(f = fopen(argv[2], "w")))
+        {
+            perror(argv[2]);
+            return NULL;
+        }
+        return f;
+    }
+    else
+    {
+        return stdout;
+    }
+}
+
+static FILE *get_asm_file(int argc, char **argv)
 {
     if (argc > 2 && strncmp(argv[2], "--", 2) != 0)
     {
@@ -122,15 +141,26 @@ int main(int argc, char **argv)
     if (at == NULL)
         return 1;
 
-    FILE *irfile = get_ir_file(argc, argv);
-
-    ir_linearise(at, irfile);
-
-    if (irfile != stdout)
-        fclose(irfile);
-
     if (strcmp(option, "--ir") == 0)
+    {
+        FILE *irfile = get_ir_file(argc, argv);
+
+        ir_linearise(at, irfile);
+
+        if (irfile != stdout)
+            fclose(irfile);
+
         return 0;
+    }
+
+    FILE *asmfile = get_asm_file(argc, argv);
+
+    asm_prepare(asmfile);
+
+    asm_generate(at);
+
+    if (asmfile != stdout)
+        fclose(asmfile);
 
     return 0;
 }
