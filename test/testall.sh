@@ -11,7 +11,7 @@ cd ..
 
 echo Syntax
 cd syntax
-if ./run.sh ../../src/parser; then
+if ./run.sh ../../src/ncc; then
   true
 else
   CODE=-1
@@ -20,7 +20,7 @@ cd ..
 
 echo Semantics
 cd semantics
-if ./run.sh ../../src/parser; then
+if ./run.sh ../../src/ncc; then
   true
 else
   CODE=-1
@@ -29,7 +29,7 @@ cd ..
 
 echo IR
 cd ir
-if ./run.sh ../../src/parser; then
+if ./run.sh ../../src/ncc; then
   true
 else
   CODE=-1
@@ -38,7 +38,7 @@ cd ..
 
 echo ASM
 cd asm
-if ./run.sh ../../src/parser; then
+if ./run.sh ../../src/ncc; then
   true
 else
   CODE=-1

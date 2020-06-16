@@ -1,6 +1,6 @@
 name: CI
 
-on: push
+on: [push, pull_request]
 
 jobs:
   test:
@@ -14,7 +14,6 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get install -yq bison flex dos2unix build-essential spim
-          g++ --version
           dos2unix $(find -name '*.sh')
           chmod +x $(find -name '*.sh')
       - name: Build
@@ -32,16 +31,16 @@ jobs:
       - name: Test Syntax & Lexical
         run: |
           cd test/syntax
-          ./run.sh ../../src/parser
+          ./run.sh ../../src/ncc
       - name: Test Semantics
         run: |
           cd test/semantics
-          ./run.sh ../../src/parser
+          ./run.sh ../../src/ncc
       - name: Test IR
         run: |
           cd test/ir
-          ./run.sh ../../src/parser
+          ./run.sh ../../src/ncc
       - name: Test ASM
         run: |
           cd test/asm
-          ./run.sh ../../src/parser
+          ./run.sh ../../src/ncc

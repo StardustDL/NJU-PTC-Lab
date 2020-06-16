@@ -17,8 +17,8 @@ YFC = $(shell find ./ -name "*.y" | sed s/[^/]*\\.y/syntax.tab.c/)
 LFO = $(LFC:.c=.o)
 YFO = $(YFC:.c=.o)
 
-parser: syntax $(filter-out $(LFO),$(OBJS))
-	$(CC) -o parser $(filter-out $(LFO),$(OBJS)) -lfl -ly
+ncc: syntax $(filter-out $(LFO),$(OBJS))
+	$(CC) -o ncc $(filter-out $(LFO),$(OBJS)) -lfl -ly
 
 syntax: lexical syntax-c
 	$(CC) -c $(YFC) -o $(YFO)
@@ -34,12 +34,12 @@ syntax-c: $(YFILE)
 # 定义的一些伪目标
 .PHONY: clean test
 test:
-	./parser ../test/test1.cmm ../test/a.S
+	./ncc ../test/test1.cmm ../test/a.S
 testir:
-	./parser ../test/test1.cmm ../test/a.ir --ir
+	./ncc ../test/test1.cmm ../test/a.ir --ir
 	../test/ir/irsim/build/irsim ../test/a.ir
 clean:
-	rm -f parser lex.yy.c syntax.tab.c syntax.tab.h syntax.output
+	rm -f ncc lex.yy.c syntax.tab.c syntax.tab.h syntax.output
 	rm -f $(OBJS) $(OBJS:.o=.d)
 	rm -f $(LFC) $(YFC) $(YFC:.c=.h)
 	rm -f *~
